@@ -9,8 +9,13 @@ mod console;
 mod lang_items;
 mod logging;
 mod sbi;
+mod batch;
+mod sync;
+mod trap;
+mod syscall;
 
 global_asm!(include_str!("entry.asm"));
+global_asm!(include_str!("link_app.S"));
 
 pub fn clear_bss() {
     unsafe extern "C" {
