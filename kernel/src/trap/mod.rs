@@ -1,7 +1,7 @@
-pub mod context;
+mod context;
 
 use crate::syscall::syscall;
-use context::TrapContext;
+pub use context::TrapContext;
 use core::arch::global_asm;
 use riscv::register::{
     mtvec::TrapMode,
@@ -12,6 +12,7 @@ use crate::batch::run_next_app;
 
 global_asm!(include_str!("trap.S"));
 
+// 操作系统初始化的时候，修改 stvec 寄存器来指向正确的 Trap 处理入口点
 pub fn init() {
     unsafe extern "C" {
         fn __alltraps();

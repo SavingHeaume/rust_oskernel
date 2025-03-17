@@ -14,7 +14,7 @@ _num_app:
     .global app_0_start
     .global app_0_end
 app_0_start:
-    .incbin "../user/target/riscv64gc-unknown-none-elf/release/hello_world.bin"
+    .incbin "../user/target/riscv64gc-unknown-none-elf/release/00hello_world.bin"
 app_0_end:
 
     .section .data

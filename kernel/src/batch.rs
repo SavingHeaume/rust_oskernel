@@ -93,6 +93,7 @@ struct UserStack {
 static KERNEL_STACK: KernelStack = KernelStack { data: [0; KERNEL_STACK_SIZE] };
 static USER_STACK: UserStack = UserStack { data: [0; USER_STACK_SIZE] };
 
+// 在 RISC-V 中栈是向下增长的，数组的结尾地址即为栈顶地址
 impl UserStack {
     fn get_sp(&self) -> usize {
         self.data.as_ptr() as usize + USER_STACK_SIZE
@@ -117,10 +118,7 @@ pub fn run_next_app() -> ! {
     let mut app_manager = APP_MANAGER.exclusive_access();
 
     let current_app = app_manager.get_current_app();
-    unsafe {
-        app_manager.load_app(current_app);
-    }
-
+    app_manager.load_app(current_app);
     app_manager.move_to_next_app();
     drop(app_manager);
 
@@ -131,5 +129,13 @@ pub fn run_next_app() -> ! {
         ) as *const _ as usize);
     }
     panic!("Should not reach here")
+}
+
+pub fn init() {
+    print_app_info();
+}
+
+pub fn print_app_info() {
+    APP_MANAGER.exclusive_access().print_app_info();
 }
 
