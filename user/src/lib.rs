@@ -43,3 +43,7 @@ pub fn yield_() -> isize {
     sys_yield_()
 }
 
+pub fn get_time() -> isize {
+    sys_get_time()
+}
+

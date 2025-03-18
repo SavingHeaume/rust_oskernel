@@ -15,6 +15,7 @@ mod syscall;
 mod config;
 mod task;
 mod loader;
+mod timer;
 
 global_asm!(include_str!("entry.asm"));
 global_asm!(include_str!("link_app.S"));
@@ -34,6 +35,8 @@ pub fn rust_main() -> ! {
     info!("hello, world!");
     trap::init();
     loader::load_apps();
+    trap::enable_timer_interrupt();
+    timer::set_next_trigger();
     task::run_first_task();
     panic!("unreachable in rust_main!");
 }

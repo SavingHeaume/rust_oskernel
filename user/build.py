@@ -24,6 +24,14 @@ for app in apps:
 
   os.system("cargo build --bin %s --release" % app)
   print("[build] application %s start with address %s" %(app, hex(base_address + step * app_id)))
+  os.system(
+      "~/.cargo/bin/rust-objcopy "
+      "--binary-architecture=riscv64 "
+      "--strip-all -O binary "
+      "target/riscv64gc-unknown-none-elf/release/%s " 
+      "target/riscv64gc-unknown-none-elf/release/app%d.bin" 
+      % (app, app_id) 
+  )
 
   with open(linker, "w+") as f:
     f.writelines(lines_before)
