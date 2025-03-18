@@ -8,7 +8,6 @@ use riscv::register::{
     scause::{self, Exception, Trap},
     stval, stvec,
 };
-use crate::batch::run_next_app;
 
 global_asm!(include_str!("trap.S"));
 
@@ -34,14 +33,17 @@ pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
 
         // 处理应用程序出现访存错误
         Trap::Exception(Exception::StoreFault) | Trap::Exception(Exception::StorePageFault) => {
-            println!("[kernel] PageFault in application, kernel killed it.");
-            run_next_app();
+            println!(
+                "[kernel] PageFault in application, bad addr = {:#x}, bad instruction = {:#x}, kernel killed it.",
+                stval, cx.sepc
+            );
+            panic!("[kernel] Cannot continue!");
         }
 
         // 处理非法指令错误
         Trap::Exception(Exception::IllegalInstruction) => {
             println!("[kernel] IllegalInstruction in application, kernel killed it.");
-            run_next_app();
+            panic!("[kernel] Cannot continue!");
         }
         _ => {
             panic!(

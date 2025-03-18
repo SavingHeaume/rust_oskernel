@@ -4,7 +4,7 @@
 # 最后通过一条 sret 指令回到应用程序执行。
 
 .altmacro
-// 将通用寄存器 x\n 的值保存到内核栈的偏移位置 n*8 处。
+# 将通用寄存器 x\n 的值保存到内核栈的偏移位置 n*8 处。
 .macro SAVE_GP n
     sd x\n, \n*8(sp)
 .endm
@@ -18,9 +18,9 @@
     .align 2
 
 __alltraps:
-    // 交换 sp栈指针和 sscratch 的值
+    # 交换 sp栈指针和 sscratch 的值
     csrrw sp, sscratch, sp
-    // 在内核栈上分配 34*8 字节（272字节）空间，用于存储 TrapContext 结构体
+    # 在内核栈上分配 34*8 字节（272字节）空间，用于存储 TrapContext 结构体
     addi sp, sp, -34*8
     sd x1, 1*8(sp)
     sd x3, 3*8(sp)
@@ -41,7 +41,6 @@ __alltraps:
 
 __restore:
     # 返回U模式
-    mv sp, a0
     ld t0, 32*8(sp)
     ld t1, 33*8(sp)
     ld t2, 2*8(sp)
