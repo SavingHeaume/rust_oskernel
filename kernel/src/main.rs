@@ -1,5 +1,7 @@
 #![no_std]
 #![no_main]
+#![feature(alloc_error_handler)]
+
 
 use core::arch::global_asm;
 use log::*;
@@ -16,6 +18,7 @@ mod config;
 mod task;
 mod loader;
 mod timer;
+mod mm;
 
 global_asm!(include_str!("entry.asm"));
 global_asm!(include_str!("link_app.S"));
