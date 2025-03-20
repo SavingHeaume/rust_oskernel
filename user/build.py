@@ -27,8 +27,8 @@ for app in apps:
   os.system(
       "~/.cargo/bin/rust-objcopy "
       "--binary-architecture=riscv64 "
-      "--strip-all -O binary "
       "target/riscv64gc-unknown-none-elf/release/%s " 
+      "--strip-all -O binary "
       "target/riscv64gc-unknown-none-elf/release/app%d.bin" 
       % (app, app_id) 
   )
