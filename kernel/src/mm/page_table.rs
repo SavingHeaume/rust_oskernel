@@ -1,5 +1,11 @@
+use super::{
+    address::{PhysPageNum, VirtPageNum},
+    frame_allocator::{FrameTracker, frame_alloc},
+};
 use bitflags::*;
-use super::address::PhysPageNum;
+#[macro_use]
+use alloc::vec;
+use alloc::vec::Vec;
 
 bitflags! {
     pub struct PTEFlags: u8 {
@@ -14,6 +20,8 @@ bitflags! {
     }
 }
 
+#[derive(Copy, Clone)]
+#[repr(C)]
 pub struct PageTableEntry {
     pub bits: usize,
 }
@@ -30,7 +38,7 @@ impl PageTableEntry {
     }
 
     pub fn ppn(&self) -> PhysPageNum {
-        (self.bits >> 10 & ((1usize << 44) -1)).into()
+        (self.bits >> 10 & ((1usize << 44) - 1)).into()
     }
 
     pub fn flags(&self) -> PTEFlags {
@@ -42,3 +50,82 @@ impl PageTableEntry {
     }
 }
 
+pub struct PageTable {
+    root_ppn: PhysPageNum,
+    frames: Vec<FrameTracker>,
+}
+
+impl PageTable {
+    pub fn new() -> Self {
+        let frame = frame_alloc().unwrap();
+        PageTable {
+            root_ppn: frame.ppn,
+            frames: vec![frame],
+        }
+    }
+
+    // 在多级页表中找到一个虚拟地址对应的页表项
+    fn find_pte_crate(&mut self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
+        let idxs = vpn.indexes();
+        let mut ppn = self.root_ppn;
+        let mut result: Option<&mut PageTableEntry> = None;
+        for i in 0..3 {
+            let pte = &mut ppn.get_pte_array()[idxs[i]];
+            if i == 2 {
+                result = Some(pte);
+                break;
+            }
+
+            if !pte.is_valid() {
+                let frame = frame_alloc().unwrap();
+                *pte = PageTableEntry::new(frame.ppn, PTEFlags::V);
+                self.frames.push(frame);
+            }
+            ppn = pte.ppn();
+        }
+        result
+    }
+
+    fn find_pte(&self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
+        let idxs = vpn.indexes();
+        let mut ppn = self.root_ppn;
+        let mut result: Option<&mut PageTableEntry> = None;
+        for i in 0..3 {
+            let pte = &mut ppn.get_pte_array()[idxs[i]];
+            if i == 2 {
+                result = Some(pte);
+                break;
+            }
+            if !pte.is_valid() {
+                return None;
+            }
+            ppn = pte.ppn()
+        }
+        result
+    }
+
+    // 多级页表中插入一个键值对
+    pub fn map(&mut self, vpn: VirtPageNum, ppn: PhysPageNum, flags: PTEFlags) {
+        let pte = self.find_pte_crate(vpn).unwrap();
+        assert!(!pte.is_valid(), "vpn {:?} is mapped before mapping", vpn);
+        *pte = PageTableEntry::new(ppn, flags | PTEFlags::V);
+    }
+
+    // 删除一个键值对
+    pub fn unmap(&mut self, vpn: VirtPageNum) {
+        let pte = self.find_pte(vpn).unwrap();
+        assert!(!pte.is_valid(), "vpn {:?} is mapped before mapping", vpn);
+        *pte = PageTableEntry::empty();
+    }
+
+    pub fn from_token(satp: usize) -> Self {
+        Self {
+            root_ppn: PhysPageNum::from(satp & ((1usize << 44) - 1)),
+            frames: Vec::new(),
+        }
+    }
+
+    pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
+        self.find_pte(vpn).map(|pte| *pte)
+    }
+}

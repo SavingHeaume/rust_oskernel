@@ -1,3 +1,4 @@
+use super::page_table::PageTableEntry;
 use crate::config::{PAGE_SIZE, PAGE_SIZE_BITS};
 
 const PA_WIDTH_SV39: usize = 56;
@@ -12,7 +13,7 @@ pub struct VirtAddr(pub usize);
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct PhysPageNum(pub usize);
 
-#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct VirtPageNum(pub usize);
 
 impl From<usize> for PhysAddr {
@@ -117,5 +118,27 @@ impl PhysPageNum {
     pub fn get_bytes_array(&self) -> &'static mut [u8] {
         let pa: PhysAddr = (*self).into();
         unsafe { core::slice::from_raw_parts_mut(pa.0 as *mut u8, 4096) }
+    }
+
+    pub fn get_pte_array(&self) -> &'static mut [PageTableEntry] {
+        let pa: PhysAddr = self.clone().into();
+        unsafe { core::slice::from_raw_parts_mut(pa.0 as *mut PageTableEntry, 512) }
+    }
+
+    pub fn get_mut<T>(&self) -> &'static mut T {
+        let pa: PhysAddr = self.clone().into();
+        unsafe { (pa.0 as *mut T).as_mut().unwrap() }
+    }
+}
+
+impl VirtPageNum {
+    pub fn indexes(&self) -> [usize; 3] {
+        let mut vpn = self.0;
+        let mut idx = [0usize; 3];
+        for i in (0..3).rev() { // 反向循环，从最高位开始
+            idx[i] = vpn & 511; // // 取低 9 位作为当前层索引
+            vpn >>= 9;
+        }
+        idx
     }
 }

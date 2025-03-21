@@ -57,7 +57,7 @@ impl StackFrameAllocator {
 }
 
 pub struct FrameTracker {
-    ppn: PhysPageNum,
+    pub ppn: PhysPageNum,
 }
 
 impl FrameTracker {
