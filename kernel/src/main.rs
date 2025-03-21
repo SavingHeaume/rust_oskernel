@@ -2,6 +2,7 @@
 #![no_main]
 #![feature(alloc_error_handler)]
 
+extern crate alloc;
 
 use core::arch::global_asm;
 use log::*;

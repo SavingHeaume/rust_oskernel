@@ -1,4 +1,4 @@
-use crate::config::{PAGE_SIZE_BITS, PAGE_SIZE};
+use crate::config::{PAGE_SIZE, PAGE_SIZE_BITS};
 
 const PA_WIDTH_SV39: usize = 56;
 const PPN_WIDTH_SV39: usize = PA_WIDTH_SV39 - PAGE_SIZE_BITS;
@@ -100,15 +100,22 @@ impl VirtAddr {
     }
 }
 
-impl From<VirtAddr> for VirtPageNum{
+impl From<VirtAddr> for VirtPageNum {
     fn from(value: VirtAddr) -> Self {
         assert_eq!(value.page_offset(), 0);
         value.floor()
     }
 }
 
-impl From<VirtPageNum> for VirtAddr{
+impl From<VirtPageNum> for VirtAddr {
     fn from(value: VirtPageNum) -> Self {
         Self(value.0 << PAGE_SIZE_BITS)
+    }
+}
+
+impl PhysPageNum {
+    pub fn get_bytes_array(&self) -> &'static mut [u8] {
+        let pa: PhysAddr = (*self).into();
+        unsafe { core::slice::from_raw_parts_mut(pa.0 as *mut u8, 4096) }
     }
 }

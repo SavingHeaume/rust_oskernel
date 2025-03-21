@@ -1,5 +1,5 @@
 use bitflags::*;
-use crate::mm::address::PhysPageNum;
+use super::address::PhysPageNum;
 
 bitflags! {
     pub struct PTEFlags: u8 {
@@ -41,3 +41,4 @@ impl PageTableEntry {
         (self.flags() & PTEFlags::V) != PTEFlags::empty()
     }
 }
+
