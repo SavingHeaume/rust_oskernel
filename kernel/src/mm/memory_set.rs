@@ -1,11 +1,16 @@
 use super::address::StepByOne;
-use super::address::{PhysPageNum, VPNRange, VirtAddr, VirtPageNum};
+use super::address::{PhysAddr, PhysPageNum, VPNRange, VirtAddr, VirtPageNum};
 use super::frame_allocator::{FrameTracker, frame_alloc};
 use super::page_table::{PTEFlags, PageTable};
 use crate::config::{MEMORY_END, PAGE_SIZE, TRAMPOLINE, TRAP_CONTEXT, USER_STACK_SIZE};
+use crate::sync::UPSafeCell;
 use alloc::collections::BTreeMap;
+use alloc::sync::Arc;
 use alloc::vec::Vec;
 use bitflags::bitflags;
+use core::arch::asm;
+use lazy_static::lazy_static;
+use riscv::register::satp;
 
 pub struct MapArea {
     vpn_range: VPNRange,
@@ -293,4 +298,59 @@ impl MemorySet {
             elf.header.pt2.entry_point() as usize,
         )
     }
+
+    pub fn activate(&self) {
+        let satp = self.page_table.token();
+        unsafe {
+            satp::write(satp);
+            asm!("sfence.vma");
+        }
+    }
+
+    pub fn map_trampoline(&mut self) {
+        self.page_table.map(
+            VirtAddr::from(TRAMPOLINE).into(),
+            PhysAddr::from(strampoline as usize).into(),
+            PTEFlags::R | PTEFlags::X,
+        )
+    }
+}
+
+lazy_static! {
+    pub static ref KERNEL_SPACE: Arc<UPSafeCell<MemorySet>> =
+        Arc::new(unsafe { UPSafeCell::new(MemorySet::new_kernel()) });
+}
+
+pub fn remap_test() {
+    let mut kernel_space = KERNEL_SPACE.exclusive_access();
+    let mid_text: VirtAddr = ((stext as usize + etext as usize) / 2).into();
+    let mid_redata: VirtAddr = ((srodata as usize + erodata as usize) / 2).into();
+    let mid_sdata: VirtAddr = ((sdata as usize + edata as usize) / 2).into();
+    assert_eq!(
+        kernel_space
+            .page_table
+            .translate(mid_text.floor())
+            .unwrap()
+            .writable(),
+        false
+    );
+
+    assert_eq!(
+        kernel_space
+            .page_table
+            .translate(mid_redata.floor())
+            .unwrap()
+            .writable(),
+        false
+    );
+
+    assert_eq!(
+        kernel_space
+            .page_table
+            .translate(mid_sdata.floor())
+            .unwrap()
+            .executable(),
+        false
+    );
+    println!("remap test passed")
 }
