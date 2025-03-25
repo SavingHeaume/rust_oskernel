@@ -1,10 +1,12 @@
-mod heap_allocator;
 mod address;
-mod page_table;
 mod frame_allocator;
+mod heap_allocator;
 mod memory_set;
+mod page_table;
 
+pub use address::{PhysPageNum, VirtAddr};
 pub use memory_set::KERNEL_SPACE;
+pub use memory_set::{MemorySet, MapPermission, remap_test};
 
 pub fn init() {
     heap_allocator::init_heap();

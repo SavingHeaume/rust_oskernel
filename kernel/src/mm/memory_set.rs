@@ -1,7 +1,7 @@
 use super::address::StepByOne;
 use super::address::{PhysAddr, PhysPageNum, VPNRange, VirtAddr, VirtPageNum};
 use super::frame_allocator::{FrameTracker, frame_alloc};
-use super::page_table::{PTEFlags, PageTable};
+use super::page_table::{PTEFlags, PageTable, PageTableEntry};
 use crate::config::{MEMORY_END, PAGE_SIZE, TRAMPOLINE, TRAP_CONTEXT, USER_STACK_SIZE};
 use crate::sync::UPSafeCell;
 use alloc::collections::BTreeMap;
@@ -57,6 +57,7 @@ impl MapArea {
         }
     }
 
+    #[allow(unused)]
     pub fn unmap(&mut self, page_table: &mut PageTable) {
         for vpn in self.vpn_range {
             self.unmap_one(page_table, vpn);
@@ -98,6 +99,7 @@ impl MapArea {
         page_table.map(vpn, ppn, pte_flags);
     }
 
+    #[allow(unused)]
     pub fn unmap_one(&mut self, page_table: &mut PageTable, vpn: VirtPageNum) {
         match self.map_type {
             MapType::Framed => {
@@ -157,7 +159,7 @@ impl MemorySet {
 
     pub fn new_kernel() -> Self {
         let mut memory_set = Self::new_bare();
-        // memory_set.map_trampoline();
+        memory_set.map_trampoline();
 
         println!(".text [{:#x}, {:#x})", stext as usize, etext as usize);
         println!(".rodata [{:#x}, {:#x})", srodata as usize, erodata as usize);
@@ -227,7 +229,7 @@ impl MemorySet {
 
     pub fn from_elf(elf_data: &[u8]) -> (Self, usize, usize) {
         let mut memory_set = Self::new_bare();
-        // memory_set.map_trampoline();
+        memory_set.map_trampoline();
 
         let elf = xmas_elf::ElfFile::new(elf_data).unwrap();
         let elf_header = elf.header;
@@ -246,7 +248,7 @@ impl MemorySet {
                 let end_va: VirtAddr = ((ph.virtual_addr() + ph.mem_size()) as usize).into();
                 let mut map_perm = MapPermission::U;
 
-                let mut ph_flags = ph.flags();
+                let ph_flags = ph.flags();
                 if ph_flags.is_read() {
                     map_perm |= MapPermission::R;
                 }
@@ -314,6 +316,14 @@ impl MemorySet {
             PTEFlags::R | PTEFlags::X,
         )
     }
+
+    pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
+        self.page_table.translate(vpn)
+    }
+
+    pub fn token(&self) -> usize {
+        self.page_table.token()
+    }
 }
 
 lazy_static! {
@@ -322,7 +332,7 @@ lazy_static! {
 }
 
 pub fn remap_test() {
-    let mut kernel_space = KERNEL_SPACE.exclusive_access();
+    let kernel_space = KERNEL_SPACE.exclusive_access();
     let mid_text: VirtAddr = ((stext as usize + etext as usize) / 2).into();
     let mid_redata: VirtAddr = ((srodata as usize + erodata as usize) / 2).into();
     let mid_sdata: VirtAddr = ((sdata as usize + edata as usize) / 2).into();

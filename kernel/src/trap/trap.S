@@ -12,7 +12,7 @@
     ld x\n, \n*8(sp)
 .endm
 
-    .section .text
+    .section .text.trampoline
     .globl __alltraps
     .globl __restore
     .align 2
@@ -20,8 +20,6 @@
 __alltraps:
     # 交换 sp栈指针和 sscratch 的值
     csrrw sp, sscratch, sp
-    # 在内核栈上分配 34*8 字节（272字节）空间，用于存储 TrapContext 结构体
-    addi sp, sp, -34*8
     sd x1, 1*8(sp)
     sd x3, 3*8(sp)
     .set n, 5
@@ -36,17 +34,27 @@ __alltraps:
     sd t1, 33*8(sp)
     csrr t2, sscratch
     sd t2, 2*8(sp)
-    mv a0, sp
-    call trap_handler
+
+    # 加载kernel_satp
+    ld t0, 34*8(sp)
+    # 加载trap_handler
+    ld t1, 36*8(sp)
+    # 移动到kernel_sp
+    ld sp, 35*8(sp)
+    csrw satp, t0
+    jr t1
 
 __restore:
-    # 返回U模式
+    csrw satp, a1
+    sfence.vma
+    csrw sscratch, a0
+    mv sp, a0
+
     ld t0, 32*8(sp)
     ld t1, 33*8(sp)
-    ld t2, 2*8(sp)
     csrw sstatus, t0
     csrw sepc, t1
-    csrw sscratch, t2
+
     ld x1, 1*8(sp)
     ld x3, 3*8(sp)
     .set n, 5
@@ -54,6 +62,5 @@ __restore:
         LOAD_GP %n
         .set n, n+1
     .endr
-    addi sp, sp, 34*8
-    csrrw sp, sscratch, sp
+    ld sp, 2*8(sp)
     sret
