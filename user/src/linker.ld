@@ -10,12 +10,12 @@ SECTIONS
         *(.text.entry)
         *(.text .text.*)
     }
-    . = ALIGN(4k)
+    . = ALIGN(4k);
     .rodata : {
         *(.rodata .rodata.*)
         *(.srodata .srodata.*)
     }
-    . = ALIGN(4k)
+    . = ALIGN(4k);
     .data : {
         *(.data .data.*)
         *(.sdata .sdata.*)

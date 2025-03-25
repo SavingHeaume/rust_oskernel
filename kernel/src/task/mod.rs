@@ -3,6 +3,7 @@ mod switch;
 mod task;
 
 use crate::loader::{get_app_data, get_num_app};
+use crate::sbi::shutdown;
 use crate::sync::UPSafeCell;
 use alloc::vec::Vec;
 use context::TaskContext;
@@ -104,7 +105,8 @@ impl TaskManager {
                 __switch(current_task_cx_ptr, next_task_cx_ptr);
             }
         } else {
-            panic!("All applications completed");
+            println!("All tasks have exited");
+            shutdown(false);
         }
     }
 
