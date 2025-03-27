@@ -3,7 +3,7 @@ mod context;
 use crate::{
     config::{TRAMPOLINE, TRAP_CONTEXT},
     syscall::syscall,
-    task::{current_user_token, suspend_current_and_run_next, current_trap_cx},
+    task::{current_trap_cx, current_user_token, exit_current_and_run_next, suspend_current_and_run_next},
     timer::set_next_trigger,
 };
 pub use context::TrapContext;
@@ -57,18 +57,21 @@ pub fn trap_handler() -> ! {
         }
 
         // 处理应用程序出现访存错误
-        Trap::Exception(Exception::StoreFault) | Trap::Exception(Exception::StorePageFault) => {
+        Trap::Exception(Exception::StoreFault)
+        | Trap::Exception(Exception::StorePageFault)
+        | Trap::Exception(Exception::LoadFault)
+        | Trap::Exception(Exception::LoadPageFault) => {
             println!(
                 "[kernel] PageFault in application, bad addr = {:#x}, bad instruction = {:#x}, kernel killed it.",
                 stval, cx.sepc
             );
-            panic!("[kernel] Cannot continue!");
+            exit_current_and_run_next();
         }
 
         // 处理非法指令错误
         Trap::Exception(Exception::IllegalInstruction) => {
             println!("[kernel] IllegalInstruction in application, kernel killed it.");
-            panic!("[kernel] Cannot continue!");
+            exit_current_and_run_next();
         }
 
         Trap::Interrupt(Interrupt::SupervisorTimer) => {

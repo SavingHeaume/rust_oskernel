@@ -3,7 +3,6 @@ use super::{
     frame_allocator::{FrameTracker, frame_alloc},
 };
 use bitflags::*;
-#[macro_use]
 use alloc::vec;
 use alloc::vec::Vec;
 
@@ -127,7 +126,7 @@ impl PageTable {
     // 删除一个键值对
     pub fn unmap(&mut self, vpn: VirtPageNum) {
         let pte = self.find_pte(vpn).unwrap();
-        assert!(!pte.is_valid(), "vpn {:?} is mapped before mapping", vpn);
+        assert!(pte.is_valid(), "vpn {:?} is invalid before unmapping", vpn);
         *pte = PageTableEntry::empty();
     }
 
