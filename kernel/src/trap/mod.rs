@@ -3,7 +3,7 @@ mod context;
 use crate::{
     config::{TRAMPOLINE, TRAP_CONTEXT},
     syscall::syscall,
-    task::{current_trap_cx, current_user_token, exit_current_and_run_next, suspend_current_and_run_next},
+    process::{current_trap_cx, current_user_token, exit_current_and_run_next, suspend_current_and_run_next},
     timer::set_next_trigger,
 };
 pub use context::TrapContext;

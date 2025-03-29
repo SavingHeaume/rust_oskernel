@@ -17,7 +17,7 @@ mod mm;
 mod sbi;
 mod sync;
 mod syscall;
-mod task;
+mod process;
 mod timer;
 mod trap;
 
@@ -45,6 +45,6 @@ pub fn rust_main() -> ! {
     trap::init();
     trap::enable_timer_interrupt();
     timer::set_next_trigger();
-    task::run_first_task();
+    process::run_first_task();
     panic!("unreachable in rust_main!");
 }
