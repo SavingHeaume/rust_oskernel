@@ -1,158 +1,38 @@
 mod context;
-mod switch;
+mod manager;
+mod pid;
 mod process;
 mod processor;
-mod pid;
-mod manager;
+mod switch;
 
-use crate::loader::{get_app_data, get_num_app};
-use crate::sbi::shutdown;
-use crate::sync::UPSafeCell;
-use alloc::vec::Vec;
+use crate::loader::get_app_data_by_name;
+use alloc::sync::Arc;
 use context::ProcessContext;
 use lazy_static::lazy_static;
-use switch::__switch;
-use crate::trap::TrapContext;
-
-pub struct TaskManager {
-    num_app: usize,
-    inner: UPSafeCell<TaskManagerInner>,
-}
-
-pub struct TaskManagerInner {
-    tasks: Vec<TaskControlBlock>,
-    current_task: usize,
-}
+use manager::add_process;
+use process::{ProcessControlBlock, ProcessStatus};
+use processor::{schedule, take_current_process};
+pub use processor::current_user_token;
 
 lazy_static! {
-    pub static ref TASK_MANAGER: TaskManager = {
-        let num_app = get_num_app();
-        println!("num_app: {}", num_app);
-        let mut tasks: Vec<TaskControlBlock> = Vec::new();
+    pub static ref INITPROC: Arc<ProcessControlBlock> = Arc::new(ProcessControlBlock::new(
+        get_app_data_by_name("initproc").unwrap()
+    ));
+}
 
-        for i in 0..num_app {
-            tasks.push(TaskControlBlock::new(get_app_data(i), i));
-        }
-
-        TaskManager {
-            num_app,
-            inner: unsafe {
-                UPSafeCell::new(TaskManagerInner {
-                    tasks,
-                    current_task: 0,
-                })
-            },
-        }
-    };
+pub fn add_initproc() {
+    add_process(INITPROC.clone());
 }
 
 pub fn suspend_current_and_run_next() {
-    mark_current_suspended();
-    run_next_task();
-}
+    let process = take_current_process().unwrap();
 
-pub fn exit_current_and_run_next() {
-    mark_current_exited();
-    run_next_task();
-}
+    let mut process_inner = process.inner_get_mut();
+    let process_cx_ptr = &mut process_inner.process_cx as *mut ProcessContext;
 
-pub fn run_first_task() {
-    TASK_MANAGER.run_first_task();
-}
+    process_inner.process_status = ProcessStatus::Ready;
+    drop(process_inner);
 
-pub fn current_user_token() -> usize {
-    TASK_MANAGER.get_current_token()
-}
-
-pub fn current_trap_cx() -> &'static mut TrapContext {
-    TASK_MANAGER.getcurrent_trap_cx()
-}
-
-pub fn change_program_brk(size: i32) -> Option<usize> {
-    TASK_MANAGER.change_current_program_brk(size)
-}
-
-fn mark_current_suspended() {
-    TASK_MANAGER.mark_current_suspended();
-}
-
-fn mark_current_exited() {
-    TASK_MANAGER.mark_current_exited();
-}
-
-fn run_next_task() {
-    TASK_MANAGER.run_next_task();
-}
-
-impl TaskManager {
-    fn mark_current_suspended(&self) {
-        let mut inner = self.inner.exclusive_access();
-        let current = inner.current_task;
-        inner.tasks[current].task_status = TaskStatus::Ready;
-    }
-
-    fn mark_current_exited(&self) {
-        let mut inner = self.inner.exclusive_access();
-        let current = inner.current_task;
-        inner.tasks[current].task_status = TaskStatus::Exited;
-    }
-
-    fn run_next_task(&self) {
-        if let Some(next) = self.find_next_task() {
-            let mut inner = self.inner.exclusive_access();
-            let current = inner.current_task;
-            inner.tasks[next].task_status = TaskStatus::Running;
-            inner.current_task = next;
-            let current_task_cx_ptr = &mut inner.tasks[current].task_cx as *mut TaskContext;
-            let next_task_cx_ptr = &inner.tasks[next].task_cx as *const TaskContext;
-            drop(inner);
-
-            unsafe {
-                __switch(current_task_cx_ptr, next_task_cx_ptr);
-            }
-        } else {
-            println!("All tasks have exited");
-            shutdown(false);
-        }
-    }
-
-    fn find_next_task(&self) -> Option<usize> {
-        let inner = self.inner.exclusive_access();
-        let current = inner.current_task;
-        (current + 1..current + self.num_app + 1)
-            .map(|id| id % self.num_app)
-            .find(|id| inner.tasks[*id].task_status == TaskStatus::Ready)
-    }
-
-    fn run_first_task(&self) -> ! {
-        let mut inner = self.inner.exclusive_access();
-        let task0 = &mut inner.tasks[0];
-        task0.task_status = TaskStatus::Running;
-        let next_task_cx_ptr = &task0.task_cx as *const TaskContext;
-        drop(inner);
-
-        let mut _unused = TaskContext::zero_init();
-        unsafe {
-            __switch(&mut _unused as *mut TaskContext, next_task_cx_ptr);
-        }
-        panic!("unreachable in run_frist_task");
-    }
-
-    fn get_current_token(&self) -> usize {
-        let inner = self.inner.exclusive_access();
-        let current = inner.current_task;
-        inner.tasks[current].get_user_token()
-    }
-
-    fn getcurrent_trap_cx(&self) -> &mut TrapContext{
-        let inner = self.inner.exclusive_access();
-        let current = inner.current_task;
-        inner.tasks[current].get_trap_cx()
-    }
-
-    pub fn change_current_program_brk(&self, size: i32) -> Option<usize> {
-        let mut inner = self.inner.exclusive_access();
-        let cur = inner.current_task;
-        inner.tasks[cur].change_program_brk(size)
-    } 
+    add_process(process);
+    schedule(process_cx_ptr);
 }
