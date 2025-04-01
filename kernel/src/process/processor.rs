@@ -3,7 +3,7 @@ use crate::{sync::UPSafeCell, trap::TrapContext};
 use super::{
     context::ProcessContext,
     manager::fetch_process,
-    process::{self, ProcessControlBlock, ProcessStatus},
+    process::{ProcessControlBlock, ProcessStatus},
     switch::__switch,
 };
 use alloc::sync::Arc;

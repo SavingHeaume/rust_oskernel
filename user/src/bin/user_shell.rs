@@ -12,7 +12,7 @@ const DL: u8 = 0x7fu8;
 const BS: u8 = 0x08u8;
 
 use alloc::string::String;
-use user_lib::{exec, fork, waitpid, yield_};
+use user_lib::{exec, fork, waitpid};
 use user_lib::console::getchar;
 
 #[unsafe(no_mangle)]

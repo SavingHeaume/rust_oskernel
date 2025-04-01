@@ -14,10 +14,10 @@ mod lang_items;
 mod loader;
 mod logging;
 mod mm;
+mod process;
 mod sbi;
 mod sync;
 mod syscall;
-mod process;
 mod timer;
 mod trap;
 
@@ -42,9 +42,11 @@ pub fn rust_main() -> ! {
     info!("hello, world!");
     mm::init();
     mm::remap_test();
+    process::add_initproc();
     trap::init();
     trap::enable_timer_interrupt();
     timer::set_next_trigger();
-    process::run_first_task();
+    loader::list_apps();
+    process::run_process();
     panic!("unreachable in rust_main!");
 }

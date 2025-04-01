@@ -4,7 +4,7 @@ use crate::{
     sbi::console_getchar,
 };
 
-const FD_STDON: usize = 0;
+const FD_STDIN: usize = 0;
 const FD_STDOUT: usize = 1;
 
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
@@ -25,7 +25,7 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
 
 pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
     match fd {
-        FD_STDON => {
+        FD_STDIN => {
             assert_eq!(len, 1, "Only support len = 1 in sys_read");
             let mut c: usize;
             loop {

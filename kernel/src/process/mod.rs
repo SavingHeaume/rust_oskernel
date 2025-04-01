@@ -11,7 +11,7 @@ use context::ProcessContext;
 use lazy_static::lazy_static;
 pub use manager::add_process;
 use process::{ProcessControlBlock, ProcessStatus};
-pub use processor::{current_process, current_trap_cx, current_user_token};
+pub use processor::{current_process, current_trap_cx, current_user_token, run_process};
 use processor::{schedule, take_current_process};
 
 lazy_static! {

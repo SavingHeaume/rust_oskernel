@@ -72,3 +72,7 @@ pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
         -2
     }
 }
+
+pub fn sys_getpid() -> isize {
+    current_process().unwrap().pid.0 as isize
+}
