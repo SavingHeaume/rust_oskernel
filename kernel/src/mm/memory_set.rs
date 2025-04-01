@@ -378,6 +378,10 @@ impl MemorySet {
             self.areas.remove(idx);
         }
     }
+
+    pub fn recycle_data_pages(&mut self) {
+        self.areas.clear();
+    }
 }
 
 lazy_static! {

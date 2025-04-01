@@ -2,8 +2,11 @@ mod context;
 
 use crate::{
     config::{TRAMPOLINE, TRAP_CONTEXT},
+    process::{
+        current_trap_cx, current_user_token, exit_current_and_run_next,
+        suspend_current_and_run_next,
+    },
     syscall::syscall,
-    process::{current_trap_cx, current_user_token, exit_current_and_run_next, suspend_current_and_run_next},
     timer::set_next_trigger,
 };
 pub use context::TrapContext;
@@ -47,13 +50,15 @@ pub fn trap_from_kernel() -> ! {
 #[unsafe(no_mangle)]
 pub fn trap_handler() -> ! {
     set_kernel_trap_entry();
-    let cx = current_trap_cx();
+    let mut cx = current_trap_cx();
     let scause = scause::read();
     let stval = stval::read();
     match scause.cause() {
         Trap::Exception(Exception::UserEnvCall) => {
             cx.sepc += 4;
-            cx.x[10] = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]) as usize;
+            let result = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]);
+            cx = current_trap_cx();
+            cx.x[10] = result as usize;
         }
 
         // 处理应用程序出现访存错误
@@ -65,13 +70,13 @@ pub fn trap_handler() -> ! {
                 "[kernel] PageFault in application, bad addr = {:#x}, bad instruction = {:#x}, kernel killed it.",
                 stval, cx.sepc
             );
-            exit_current_and_run_next();
+            exit_current_and_run_next(-2);
         }
 
         // 处理非法指令错误
         Trap::Exception(Exception::IllegalInstruction) => {
             println!("[kernel] IllegalInstruction in application, kernel killed it.");
-            exit_current_and_run_next();
+            exit_current_and_run_next(-3);
         }
 
         Trap::Interrupt(Interrupt::SupervisorTimer) => {

@@ -72,6 +72,10 @@ impl PhysAddr {
     pub fn ceil(&self) -> PhysPageNum {
         PhysPageNum((self.0 + PAGE_SIZE - 1) / PAGE_SIZE)
     }
+
+    pub fn get_mut<T>(&self) -> &'static mut T {
+        unsafe { (self.0 as *mut T).as_mut().unwrap() }
+    }
 }
 
 impl From<PhysAddr> for PhysPageNum {
@@ -245,6 +249,5 @@ where
         SimpleRangeIterator::new(self.l, self.r)
     }
 }
-
 
 pub type VPNRange = SimpleRange<VirtPageNum>;

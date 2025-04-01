@@ -9,10 +9,10 @@ use crate::loader::get_app_data_by_name;
 use alloc::sync::Arc;
 use context::ProcessContext;
 use lazy_static::lazy_static;
-use manager::add_process;
+pub use manager::add_process;
 use process::{ProcessControlBlock, ProcessStatus};
+pub use processor::{current_process, current_trap_cx, current_user_token};
 use processor::{schedule, take_current_process};
-pub use processor::current_user_token;
 
 lazy_static! {
     pub static ref INITPROC: Arc<ProcessControlBlock> = Arc::new(ProcessControlBlock::new(
@@ -35,4 +35,26 @@ pub fn suspend_current_and_run_next() {
 
     add_process(process);
     schedule(process_cx_ptr);
+}
+
+pub fn exit_current_and_run_next(exit_code: i32) {
+    let process = take_current_process().unwrap();
+    let mut inner = process.inner_get_mut();
+    inner.process_status = ProcessStatus::Zombie;
+    inner.exit_code = exit_code;
+
+    {
+        let mut initproc_inner = INITPROC.inner_get_mut();
+        for child in inner.children.iter() {
+            child.inner_get_mut().parent = Some(Arc::downgrade(&INITPROC));
+            initproc_inner.children.push(child.clone());
+        }
+    }
+
+    inner.children.clear();
+    inner.memory_set.recycle_data_pages();
+    drop(inner);
+    drop(process);
+    let mut _unused = ProcessContext::zero_init();
+    schedule(&mut _unused as *mut _);
 }

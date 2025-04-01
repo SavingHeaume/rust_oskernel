@@ -105,10 +105,9 @@ impl ProcessControlBlock {
 
         process_control_block
     }
-    // pub fn exec(&self, elf_data: &[u8]) {}
     pub fn fork(self: &Arc<ProcessControlBlock>) -> Arc<ProcessControlBlock> {
         let mut parent_inner = self.inner_get_mut();
-        let mut memory_set = MemorySet::from_existed_user(&parent_inner.memory_set);
+        let memory_set = MemorySet::from_existed_user(&parent_inner.memory_set);
         let trap_cx_ppn = memory_set
             .translate(VirtAddr::from(TRAP_CONTEXT).into())
             .unwrap()
@@ -137,5 +136,24 @@ impl ProcessControlBlock {
         trap_cx.kernel_sp = kernel_stack_top;
 
         pcb
+    }
+    pub fn exec(&self, elf_data: &[u8]) {
+        let (memory_set, user_sp, entry_point) = MemorySet::from_elf(elf_data);
+        let trap_cx_ppn = memory_set
+            .translate(VirtAddr::from(TRAP_CONTEXT).into())
+            .unwrap()
+            .ppn();
+
+        let mut inner = self.inner_get_mut();
+        inner.memory_set = memory_set;
+        inner.trap_cx_ppn = trap_cx_ppn;
+        let trap_cx = inner.get_trap_cx();
+        *trap_cx = TrapContext::app_init_context(
+            entry_point,
+            user_sp,
+            KERNEL_SPACE.exclusive_access().token(),
+            self.kernel_stack.get_top(),
+            trap_handler as usize,
+        )
     }
 }
