@@ -1,9 +1,11 @@
 use crate::{BLOCK_SZ, block_dev::BlockDevice};
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
+use lazy_static::lazy_static;
 use spin::Mutex;
 
 const BLOCK_CACHE_SIZE: usize = 16;
+
 
 pub struct BlockCache {
     cache: [u8; BLOCK_SZ],
@@ -90,7 +92,6 @@ impl BlockCacheManager {
         if let Some(pair) = self.queue.iter().find(|pair| pair.0 == block_id) {
             Arc::clone(&pair.1)
         } else {
-
             // fifo
             if self.queue.len() == BLOCK_CACHE_SIZE {
                 if let Some((idx, _)) = self
@@ -114,3 +115,18 @@ impl BlockCacheManager {
         }
     }
 }
+
+lazy_static! {
+    pub static ref BLOCK_CACHE_MANAGER: Mutex<BlockCacheManager> =
+        Mutex::new(BlockCacheManager::new());
+}
+
+pub fn get_block_cache(
+    block_id: usize,
+    block_device: Arc<dyn BlockDevice>,
+) -> Arc<Mutex<BlockCache>> {
+    BLOCK_CACHE_MANAGER
+        .lock()
+        .get_block_cache(block_id, block_device)
+}
+
