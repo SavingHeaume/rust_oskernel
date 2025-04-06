@@ -61,6 +61,10 @@ impl Bitmap {
                 bitmap_block[bit64_pos] -= 1u64 << inner_pos;
             })
     }
+
+    pub fn maximum(&self) -> usize {
+        self.blocks * BLOCK_BITS
+    }
 }
 
 fn decomposition(mut bit: usize) -> (usize, usize, usize) {

@@ -54,7 +54,7 @@ impl SuperBlock {
 }
 
 type IndirectBlock = [u32; BLOCK_SZ / 4];
-type DataBlock = [u8; BLOCK_SZ];
+pub type DataBlock = [u8; BLOCK_SZ];
 
 #[repr(C)]
 pub struct DiskInode {
