@@ -16,6 +16,9 @@ const INDIRECT1_BOUND: usize = DIRECT_BOUND + INODE_INDIRECT1_COUNT;
 const INODE_INDIRECT2_COUNT: usize = INODE_INDIRECT1_COUNT * INODE_INDIRECT1_COUNT;
 const INDIRECT2_DOUND: usize = INDIRECT1_BOUND + INODE_INDIRECT2_COUNT;
 
+const NAME_LENGTH_LTMIT: usize = 27;
+pub const DIRENT_SZ: usize = 32;
+
 #[repr(C)]
 pub struct SuperBlock {
     magic: u32,
@@ -379,5 +382,38 @@ impl DiskInode {
         }
 
         write_size
+    }
+}
+
+#[repr(C)]
+pub struct DirEntry {
+    name: [u8; NAME_LENGTH_LTMIT + 1],
+    inode_number: u32,
+}
+
+impl DirEntry {
+    pub fn empty() -> Self {
+        Self {
+            name: [0u8; NAME_LENGTH_LTMIT + 1],
+            inode_number: 0,
+        }
+    }
+
+    pub fn new(name: &str, inode_number: u32) -> Self {
+        let mut bytes = [0u8; NAME_LENGTH_LTMIT + 1];
+        &mut bytes[..name.len()].copy_from_slice(name.as_bytes());
+        Self {
+            name: bytes,
+            inode_number,
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        let len = (0usize..).find(|i| self.name[*i] == 0).unwrap();
+        core::str::from_utf8(&self.name[..len]).unwrap()
+    }
+
+    pub fn inode_number(&self) -> u32 {
+        self.inode_number
     }
 }
