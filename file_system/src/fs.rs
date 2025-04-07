@@ -3,6 +3,7 @@ use crate::bitmap::Bitmap;
 use crate::block_cache::get_block_cache;
 use crate::block_dev::BlockDevice;
 use crate::layout::{DataBlock, DiskInode, DiskInodeType, SuperBlock};
+use crate::vfs::Inode;
 use alloc::sync::Arc;
 use spin::Mutex;
 
@@ -135,5 +136,13 @@ impl FileSystem {
 
                 Arc::new(Mutex::new(fs))
             })
+    }
+
+    pub fn root_inode(fs: &Arc<Mutex<Self>>) -> Inode {
+        let block_device = Arc::clone(&fs.lock().block_device);
+
+        let (block_id, block_offset) = fs.lock().get_disk_inode_pos(0);
+
+        Inode::new(block_id, block_offset, Arc::clone(fs), block_device)
     }
 }
