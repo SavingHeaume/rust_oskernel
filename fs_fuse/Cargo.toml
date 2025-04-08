@@ -1,0 +1,9 @@
+[package]
+name = "fs_fuse"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+file_system = {path = "../file_system"}
+rand = "0.8.0"
+clap = "2.33.3"
