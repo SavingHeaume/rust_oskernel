@@ -14,6 +14,7 @@ const DIRECT_BOUND: usize = INODE_DIRECT_COUNT;
 const INDIRECT1_BOUND: usize = DIRECT_BOUND + INODE_INDIRECT1_COUNT;
 
 const INODE_INDIRECT2_COUNT: usize = INODE_INDIRECT1_COUNT * INODE_INDIRECT1_COUNT;
+#[allow(unused)]
 const INDIRECT2_DOUND: usize = INDIRECT1_BOUND + INODE_INDIRECT2_COUNT;
 
 const NAME_LENGTH_LTMIT: usize = 27;
@@ -109,7 +110,7 @@ impl DiskInode {
             get_block_cache(indirec1 as usize, Arc::clone(block_device))
                 .lock()
                 .read(0, |indirec1: &IndirectBlock| {
-                    indirec1[last % INODE_DIRECT_COUNT]
+                    indirec1[last % INODE_INDIRECT1_COUNT]
                 })
         }
     }
@@ -128,7 +129,7 @@ impl DiskInode {
         if data_blocks > INODE_DIRECT_COUNT {
             total += 1;
         }
-        if data_blocks > INODE_INDIRECT1_COUNT {
+        if data_blocks > INDIRECT1_BOUND {
             total += 1;
             total +=
                 (data_blocks - INDIRECT1_BOUND + INODE_INDIRECT1_COUNT - 1) / INODE_INDIRECT1_COUNT;
@@ -210,20 +211,19 @@ impl DiskInode {
                     if b0 == 0 {
                         indirect2[a0] = new_blocks.next().unwrap();
                     }
-                }
+                    // 修改一级块内的数据块
+                    get_block_cache(indirect2[a0] as usize, Arc::clone(block_device))
+                        .lock()
+                        .modify(0, |indirect1: &mut IndirectBlock| {
+                            indirect1[b0] = new_blocks.next().unwrap();
+                        });
 
-                // 修改一级块内的数据块
-                get_block_cache(indirect2[a0] as usize, Arc::clone(block_device))
-                    .lock()
-                    .modify(0, |indirect1: &mut IndirectBlock| {
-                        indirect1[b0] = new_blocks.next().unwrap();
-                    });
-
-                // 移动到下一个位置
-                b0 += 1;
-                if b0 == INODE_INDIRECT1_COUNT {
-                    b0 = 0;
-                    a0 += 1;
+                    // 移动到下一个位置
+                    b0 += 1;
+                    if b0 == INODE_INDIRECT1_COUNT {
+                        b0 = 0;
+                        a0 += 1;
+                    }
                 }
             })
     }
@@ -254,7 +254,7 @@ impl DiskInode {
             .lock()
             .modify(0, |indirect1: &mut IndirectBlock| {
                 while current_blocks < data_blocks.min(INODE_INDIRECT1_COUNT) {
-                    v.push(self.indirect1);
+                    v.push(indirect1[current_blocks]);
                     current_blocks += 1;
                 }
             });
@@ -369,7 +369,7 @@ impl DiskInode {
             .lock()
             .modify(0, |data_block: &mut DataBlock| {
                 let src = &buf[write_size..write_size + block_write_size];
-                let dst = &mut data_block[start % BLOCK_SZ..start % BLOCK_SZ];
+                let dst = &mut data_block[start % BLOCK_SZ..start % BLOCK_SZ + block_write_size];
                 dst.copy_from_slice(src);
             });
 
@@ -401,7 +401,7 @@ impl DirEntry {
 
     pub fn new(name: &str, inode_number: u32) -> Self {
         let mut bytes = [0u8; NAME_LENGTH_LTMIT + 1];
-        &mut bytes[..name.len()].copy_from_slice(name.as_bytes());
+        bytes[..name.len()].copy_from_slice(name.as_bytes());
         Self {
             name: bytes,
             inode_number,

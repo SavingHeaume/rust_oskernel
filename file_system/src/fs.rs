@@ -1,6 +1,6 @@
 use crate::BLOCK_SZ;
 use crate::bitmap::Bitmap;
-use crate::block_cache::get_block_cache;
+use crate::block_cache::{block_cache_sync_all, get_block_cache};
 use crate::block_dev::BlockDevice;
 use crate::layout::{DataBlock, DiskInode, DiskInodeType, SuperBlock};
 use crate::vfs::Inode;
@@ -76,6 +76,8 @@ impl FileSystem {
             .modify(root_inode_offset, |disk_inode: &mut DiskInode| {
                 disk_inode.initialize(DiskInodeType::Directory);
             });
+
+        block_cache_sync_all();
 
         Arc::new(Mutex::new(fs))
     }

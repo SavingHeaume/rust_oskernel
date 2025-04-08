@@ -1,3 +1,4 @@
+use crate::block_cache::block_cache_sync_all;
 use crate::layout::DIRENT_SZ;
 use crate::layout::DirEntry;
 use crate::layout::DiskInode;
@@ -96,13 +97,11 @@ impl Inode {
         let mut fs = self.fs.lock();
 
         // 检查文件是否存在
-        if self
-            .modify_disk_inode(|root_inode| {
-                assert!(root_inode.is_dir());
-                self.find_inode_id(name, root_inode)
-            })
-            .is_some()
-        {
+        let op = |root_inode: &DiskInode| {
+            assert!(root_inode.is_dir());
+            self.find_inode_id(name, root_inode)
+        };
+        if self.read_disk_inode(op).is_some() {
             return None;
         }
 
@@ -132,6 +131,7 @@ impl Inode {
         });
 
         let (block_id, block_offset) = fs.get_disk_inode_pos(new_inode_id);
+        block_cache_sync_all();
         Some(Arc::new(Self::new(
             block_id,
             block_offset,
@@ -167,7 +167,8 @@ impl Inode {
             for data_block in data_blocks_dealloc.into_iter() {
                 fs.dealloc_data(data_block);
             }
-        })
+        });
+        block_cache_sync_all();
     }
 
     pub fn read_at(&self, offset: usize, buf: &mut [u8]) -> usize {
@@ -177,9 +178,11 @@ impl Inode {
 
     pub fn write_at(&self, offset: usize, buf: &[u8]) -> usize {
         let mut fs = self.fs.lock();
-        self.modify_disk_inode(|disk_inode| {
+        let size = self.modify_disk_inode(|disk_inode| {
             self.increase_size((offset + buf.len()) as u32, disk_inode, &mut fs);
             disk_inode.write_at(offset, buf, &self.block_device)
-        })
+        });
+        block_cache_sync_all();
+        size
     }
 }

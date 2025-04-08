@@ -1,4 +1,4 @@
-use crate::{BLOCK_SZ, bitmap, block_cache::get_block_cache, block_dev::BlockDevice};
+use crate::{BLOCK_SZ, block_cache::get_block_cache, block_dev::BlockDevice};
 use alloc::sync::Arc;
 
 const BLOCK_BITS: usize = BLOCK_SZ * 8;
@@ -43,22 +43,25 @@ impl Bitmap {
                     .map(|(bits64_pos, bits64)| (bits64_pos, bits64.trailing_ones() as usize))
                 {
                     bitmap_block[bits64_pos] |= 1u64 << inner_pos;
-                    Some(block_id * BLOCK_BITS + bits64_pos + inner_pos as usize)
+                    Some(block_id * BLOCK_BITS + bits64_pos * 64 + inner_pos as usize)
                 } else {
                     None
                 }
             });
+            if pos.is_some() {
+                return pos;
+            }
         }
         None
     }
 
     pub fn dealloc(&self, block_device: &Arc<dyn BlockDevice>, bit: usize) {
-        let (block_pos, bit64_pos, inner_pos) = decomposition(bit);
+        let (block_pos, bits64_pos, inner_pos) = decomposition(bit);
         get_block_cache(block_pos + self.start_block_id, Arc::clone(block_device))
             .lock()
             .modify(0, |bitmap_block: &mut BitmapBlock| {
-                assert!(bitmap_block[bit64_pos] & (1u64 << inner_pos) > 0);
-                bitmap_block[bit64_pos] -= 1u64 << inner_pos;
+                assert!(bitmap_block[bits64_pos] & (1u64 << inner_pos) > 0);
+                bitmap_block[bits64_pos] -= 1u64 << inner_pos;
             })
     }
 
