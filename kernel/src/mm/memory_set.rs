@@ -384,6 +384,10 @@ impl MemorySet {
     }
 }
 
+pub fn kernel_token() -> usize {
+    KERNEL_SPACE.exclusive_access().token()
+}
+
 lazy_static! {
     pub static ref KERNEL_SPACE: Arc<UPSafeCell<MemorySet>> =
         Arc::new(unsafe { UPSafeCell::new(MemorySet::new_kernel()) });

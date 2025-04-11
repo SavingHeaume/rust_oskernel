@@ -20,6 +20,7 @@ mod sync;
 mod syscall;
 mod timer;
 mod trap;
+mod drivers;
 
 global_asm!(include_str!("entry.asm"));
 global_asm!(include_str!("link_app.S"));
