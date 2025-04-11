@@ -6,7 +6,9 @@ use crate::layout::DiskInodeType;
 use crate::{block_cache::get_block_cache, block_dev::BlockDevice, fs::FileSystem};
 use spin::Mutex;
 use spin::MutexGuard;
-use std::sync::Arc;
+use alloc::sync::Arc;
+use alloc::vec::Vec;
+use alloc::string::String;
 
 pub struct Inode {
     block_id: usize,

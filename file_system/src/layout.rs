@@ -2,6 +2,7 @@ use crate::BLOCK_SZ;
 use crate::block_cache::get_block_cache;
 use crate::block_dev::BlockDevice;
 use alloc::sync::Arc;
+use alloc::vec::Vec;
 
 const EFS_MAGIC: u32 = 0x3b800001;
 // 直接索引节点的最大数量

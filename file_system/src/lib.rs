@@ -1,3 +1,4 @@
+#![no_std]
 mod bitmap;
 mod block_cache;
 mod block_dev;
