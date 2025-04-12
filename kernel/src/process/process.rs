@@ -7,6 +7,7 @@ use super::ProcessContext;
 use super::pid::pid_alloc;
 use super::pid::{KernelStack, PidHandle};
 use crate::config::TRAP_CONTEXT;
+use crate::fs::File;
 use crate::mm::{KERNEL_SPACE, MemorySet};
 use crate::mm::{PhysPageNum, VirtAddr};
 use crate::sync::UPSafeCell;
@@ -37,6 +38,8 @@ pub struct ProcessControlBlockInner {
     pub children: Vec<Arc<ProcessControlBlock>>,
 
     pub exit_code: i32,
+
+    pub fd_table: Vec<Option<Arc<dyn File + Send + Sync>>>,
 }
 
 impl ProcessControlBlockInner {
@@ -54,6 +57,15 @@ impl ProcessControlBlockInner {
 
     pub fn is_zombie(&self) -> bool {
         self.get_status() == ProcessStatus::Zombie
+    }
+
+    pub fn alloc_fd(&mut self) -> usize {
+        if let Some(fd) = (0..self.fd_table.len()).find(|fd| self.fd_table[*fd].is_none()) {
+            fd
+        } else {
+            self.fd_table.push(None);
+            self.fd_table.len() - 1
+        }
     }
 }
 
@@ -90,6 +102,7 @@ impl ProcessControlBlock {
                     parent: None,
                     children: Vec::new(),
                     exit_code: 0,
+                    fd_table: Vec::new(),
                 })
             },
         };
@@ -128,6 +141,7 @@ impl ProcessControlBlock {
                     parent: Some(Arc::downgrade(self)),
                     children: Vec::new(),
                     exit_code: 0,
+                    fd_table: Vec::new(),
                 })
             },
         });

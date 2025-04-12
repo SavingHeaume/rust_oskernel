@@ -5,7 +5,7 @@ mod process;
 mod processor;
 mod switch;
 
-use crate::loader::get_app_data_by_name;
+use crate::fs::{OpenFlags, open_file};
 use alloc::sync::Arc;
 use context::ProcessContext;
 use lazy_static::lazy_static;
@@ -15,9 +15,11 @@ pub use processor::{current_process, current_trap_cx, current_user_token, run_pr
 use processor::{schedule, take_current_process};
 
 lazy_static! {
-    pub static ref INITPROC: Arc<ProcessControlBlock> = Arc::new(ProcessControlBlock::new(
-        get_app_data_by_name("initproc").unwrap()
-    ));
+    pub static ref INITPROC: Arc<ProcessControlBlock> = Arc::new({
+        let inode = open_file("initproc", OpenFlags::RDONLY).unwrap();
+        let v = inode.read_all();
+        ProcessControlBlock::new(v.as_slice())
+    });
 }
 
 pub fn add_initproc() {
