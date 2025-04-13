@@ -1,6 +1,7 @@
 use core::cell::RefMut;
 
 use alloc::sync::{Arc, Weak};
+use alloc::vec;
 use alloc::vec::Vec;
 
 use super::ProcessContext;
@@ -8,6 +9,7 @@ use super::pid::pid_alloc;
 use super::pid::{KernelStack, PidHandle};
 use crate::config::TRAP_CONTEXT;
 use crate::fs::File;
+use crate::fs::{Stdin, Stdout};
 use crate::mm::{KERNEL_SPACE, MemorySet};
 use crate::mm::{PhysPageNum, VirtAddr};
 use crate::sync::UPSafeCell;
@@ -102,7 +104,11 @@ impl ProcessControlBlock {
                     parent: None,
                     children: Vec::new(),
                     exit_code: 0,
-                    fd_table: Vec::new(),
+                    fd_table: vec![
+                        Some(Arc::new(Stdin)),
+                        Some(Arc::new(Stdout)),
+                        Some(Arc::new(Stdout)),
+                    ],
                 })
             },
         };
@@ -128,6 +134,16 @@ impl ProcessControlBlock {
         let pid_handle = pid_alloc();
         let kernel_stack = KernelStack::new(&pid_handle);
         let kernel_stack_top = kernel_stack.get_top();
+
+        let mut new_fd_table: Vec<Option<Arc<dyn File + Send + Sync>>> = Vec::new();
+        for fd in parent_inner.fd_table.iter() {
+            if let Some(file) = fd {
+                new_fd_table.push(Some(file.clone()));
+            } else {
+                new_fd_table.push(None);
+            }
+        }
+
         let pcb = Arc::new(ProcessControlBlock {
             pid: pid_handle,
             kernel_stack,
@@ -141,7 +157,7 @@ impl ProcessControlBlock {
                     parent: Some(Arc::downgrade(self)),
                     children: Vec::new(),
                     exit_code: 0,
-                    fd_table: Vec::new(),
+                    fd_table: new_fd_table,
                 })
             },
         });
@@ -168,6 +184,6 @@ impl ProcessControlBlock {
             KERNEL_SPACE.exclusive_access().token(),
             self.kernel_stack.get_top(),
             trap_handler as usize,
-        )
+        );
     }
 }

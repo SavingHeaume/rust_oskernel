@@ -44,17 +44,19 @@ pub fn set_user_trap_entry() {
 
 #[unsafe(no_mangle)]
 pub fn trap_from_kernel() -> ! {
-    panic!("[kernel] Trap from kernel, cannot continue!")
+    use riscv::register::sepc;
+    println!("stval = {:#x}, sepc = {:#x}", stval::read(), sepc::read());
+    panic!("a trap {:?} from kernel!", scause::read().cause());
 }
 
 #[unsafe(no_mangle)]
 pub fn trap_handler() -> ! {
     set_kernel_trap_entry();
-    let mut cx = current_trap_cx();
     let scause = scause::read();
     let stval = stval::read();
     match scause.cause() {
         Trap::Exception(Exception::UserEnvCall) => {
+            let mut cx = current_trap_cx();
             cx.sepc += 4;
             let result = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]);
             cx = current_trap_cx();
@@ -67,8 +69,10 @@ pub fn trap_handler() -> ! {
         | Trap::Exception(Exception::LoadFault)
         | Trap::Exception(Exception::LoadPageFault) => {
             println!(
-                "[kernel] PageFault in application, bad addr = {:#x}, bad instruction = {:#x}, kernel killed it.",
-                stval, cx.sepc
+                "[kernel] {:?} in application, bad addr = {:#x}, bad instruction = {:#x}, kernel killed it.",
+                scause.cause(),
+                stval,
+                current_trap_cx().sepc,
             );
             exit_current_and_run_next(-2);
         }

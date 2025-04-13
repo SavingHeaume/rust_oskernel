@@ -3,6 +3,7 @@
 #![feature(alloc_error_handler)]
 
 extern crate alloc;
+extern crate log;
 
 use core::arch::global_asm;
 use log::*;
@@ -10,8 +11,9 @@ use log::*;
 #[macro_use]
 mod console;
 mod config;
+mod drivers;
+mod fs;
 mod lang_items;
-mod loader;
 mod logging;
 mod mm;
 mod process;
@@ -20,11 +22,8 @@ mod sync;
 mod syscall;
 mod timer;
 mod trap;
-mod drivers;
-mod fs;
 
 global_asm!(include_str!("entry.asm"));
-global_asm!(include_str!("link_app.S"));
 
 pub fn clear_bss() {
     unsafe extern "C" {
@@ -44,11 +43,11 @@ pub fn rust_main() -> ! {
     info!("hello, world!");
     mm::init();
     mm::remap_test();
-    process::add_initproc();
     trap::init();
     trap::enable_timer_interrupt();
     timer::set_next_trigger();
-    loader::list_apps();
+    fs::list_apps();
+    process::add_initproc();
     process::run_process();
     panic!("unreachable in rust_main!");
 }

@@ -3,6 +3,11 @@ name = "kernel"
 version = "0.1.0"
 edition = "2024"
 
+[profile.release]
+debug = true
+opt-level = 0
+overflow-checks = false
+
 [dependencies]
 log = "0.4"
 sbi-rt = { version = "0.0.2", features = ["legacy"] }

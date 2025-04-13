@@ -1,12 +1,12 @@
 use crate::fs::{OpenFlags, open_file};
-use crate::loader::get_app_data_by_name;
 use crate::mm::{translated_refmut, translated_str};
 use crate::process::{
-    self, add_process, current_process, current_user_token, exit_current_and_run_next,
+    add_process, current_process, current_user_token, exit_current_and_run_next,
     suspend_current_and_run_next,
 };
 use crate::timer::get_time_us;
 use alloc::sync::Arc;
+use log::trace;
 
 pub fn sys_exit(exit_code: i32) -> ! {
     exit_current_and_run_next(exit_code);
@@ -34,6 +34,7 @@ pub fn sys_fork() -> isize {
 }
 
 pub fn sys_exec(path: *const u8) -> isize {
+    trace!("kernel:pid[{}] sys_exec", current_process().unwrap().pid.0);
     let token = current_user_token();
     let path = translated_str(token, path);
     if let Some(app_inode) = open_file(path.as_str(), OpenFlags::RDONLY) {

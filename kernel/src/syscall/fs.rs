@@ -1,57 +1,9 @@
 use crate::{
-    fs::{OpenFlags, open_file},
-    mm::{translated_byte_buffer, translated_str},
-    process::{current_process, current_user_token, suspend_current_and_run_next},
-    sbi::console_getchar,
+    fs::{OpenFlags, Stdin, Stdout, open_file},
+    mm::{UserBuffer, translated_byte_buffer, translated_str},
+    process::{current_process, current_user_token},
 };
-
-use super::process;
-
-const FD_STDIN: usize = 0;
-const FD_STDOUT: usize = 1;
-
-pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
-    match fd {
-        // 标准输出
-        FD_STDOUT => {
-            let buffers = translated_byte_buffer(current_user_token(), buf, len);
-            for buffer in buffers {
-                print!("{}", core::str::from_utf8(buffer).unwrap());
-            }
-            len as isize
-        }
-        _ => {
-            panic!("write: invalid file descriptor");
-        }
-    }
-}
-
-pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
-    match fd {
-        FD_STDIN => {
-            assert_eq!(len, 1, "Only support len = 1 in sys_read");
-            let mut c: usize;
-            loop {
-                c = console_getchar();
-                if c == 0 {
-                    suspend_current_and_run_next();
-                    continue;
-                } else {
-                    break;
-                }
-            }
-            let ch = c as u8;
-            let mut buffers = translated_byte_buffer(current_user_token(), buf, len);
-            unsafe {
-                buffers[0].as_mut_ptr().write_volatile(ch);
-            }
-            1
-        }
-        _ => {
-            panic!("unsupported fd in sys_read");
-        }
-    }
-}
+use alloc::sync::Arc;
 
 pub fn sys_open(path: *const u8, flags: u32) -> isize {
     let process = current_process().unwrap();
@@ -78,4 +30,45 @@ pub fn sys_close(fd: usize) -> isize {
     }
     inner.fd_table[fd].take();
     0
+}
+
+pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
+    let token = current_user_token();
+    let process = current_process().unwrap();
+    let inner = process.inner_get_mut();
+
+    if fd >= inner.fd_table.len() {
+        return -1;
+    }
+
+    if let Some(file) = &inner.fd_table[fd] {
+        if !file.writable() {
+            return -1;
+        }
+        let file = file.clone();
+        drop(inner);
+        file.read(UserBuffer::new(translated_byte_buffer(token, buf, len))) as isize
+    } else {
+        -1
+    }
+}
+
+pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
+    let token = current_user_token();
+    let process = current_process().unwrap();
+    let inner = process.inner_get_mut();
+    if fd >= inner.fd_table.len() {
+        return -1;
+    }
+
+    if let Some(file) = &inner.fd_table[fd] {
+        let file = file.clone();
+        if !file.readable() {
+            return -1;
+        }
+        drop(inner);
+        file.read(UserBuffer::new(translated_byte_buffer(token, buf, len))) as isize
+    } else {
+        -1
+    }
 }

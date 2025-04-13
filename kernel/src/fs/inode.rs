@@ -1,8 +1,8 @@
 use super::File;
 use crate::drivers::BLOCK_DEVICE;
 use crate::sync::UPSafeCell;
+use alloc::sync::Arc;
 use alloc::vec::Vec;
-use alloc::{slice, sync::Arc};
 use bitflags::bitflags;
 use file_system::{FileSystem, Inode};
 use lazy_static::lazy_static;

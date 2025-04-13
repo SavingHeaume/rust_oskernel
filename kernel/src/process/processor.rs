@@ -1,4 +1,5 @@
 use crate::{sync::UPSafeCell, trap::TrapContext};
+use log::warn;
 
 use super::{
     context::ProcessContext,
@@ -79,6 +80,8 @@ pub fn run_process() {
             unsafe {
                 __switch(idle_process_cx_ptr, next_process_cx_ptr);
             }
+        } else {
+            warn!("no process available in run_process");
         }
     }
 }
