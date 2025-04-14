@@ -4,11 +4,16 @@ mod heap_allocator;
 mod memory_set;
 mod page_table;
 
-pub use address::{PhysPageNum, VirtAddr, PhysAddr, StepByOne};
+use address::VPNRange;
+pub use address::{PhysAddr, PhysPageNum, StepByOne, VirtAddr, VirtPageNum};
 pub use frame_allocator::{FrameTracker, frame_alloc, frame_dealloc};
-pub use memory_set::{KERNEL_SPACE, kernel_token};
-pub use memory_set::{MapPermission, MemorySet, remap_test};
-pub use page_table::{translated_byte_buffer, UserBuffer, translated_refmut, translated_str, PageTable};
+pub use memory_set::remap_test;
+pub use memory_set::{KERNEL_SPACE, MapPermission, MemorySet, kernel_token};
+use page_table::PTEFlags;
+pub use page_table::{
+    PageTable, PageTableEntry, UserBuffer, UserBufferIterator, translated_byte_buffer,
+    translated_ref, translated_refmut, translated_str,
+};
 
 pub fn init() {
     heap_allocator::init_heap();

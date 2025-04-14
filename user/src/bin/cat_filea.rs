@@ -1,5 +1,4 @@
 #![no_std]
-#![no_std]
 #![no_main]
 
 #[macro_use]
@@ -12,9 +11,8 @@ use user_lib::{OpenFlags, close, open, read};
 pub fn main() -> i32 {
     let fd = open("filea\0", OpenFlags::RDONLY);
     if fd == -1 {
-        panic!("error occured when opening file");
+        panic!("Error occured when opening file");
     }
-
     let fd = fd as usize;
     let mut buf = [0u8; 256];
     loop {

@@ -1,21 +1,23 @@
+#[allow(unused)]
+
+/// 用户应用程序的堆栈大小
 pub const USER_STACK_SIZE: usize = 4096 * 2;
+/// 内核堆栈大小
 pub const KERNEL_STACK_SIZE: usize = 4096 * 2;
-#[allow(unused)]
-pub const MAX_APP_NUM: usize = 4;
-#[allow(unused)]
-pub const APP_BASE_ADDRESS: usize = 0x80400000;
-#[allow(unused)]
-pub const APP_SIZE_LIMIT: usize = 0x20000;
+/// 内核堆大小
+pub const KERNEL_HEAP_SIZE: usize = 0x200_0000;
+
+/// page size : 4KB
+pub const PAGE_SIZE: usize = 0x1000;
+/// page size bits: 12
+pub const PAGE_SIZE_BITS: usize = 0xc;
+/// 跳板的虚拟地址
+pub const TRAMPOLINE: usize = usize::MAX - PAGE_SIZE + 1;
+/// trap上下文的虚拟地址
+pub const TRAP_CONTEXT_BASE: usize = TRAMPOLINE - PAGE_SIZE;
+/// 时钟频率
 pub const CLOCK_FREQ: usize = 12500000;
 
-pub const KERNEL_HEAP_SIZE: usize = 0x30_0000;
-
-pub const PAGE_SIZE: usize = 0x1000;
-pub const PAGE_SIZE_BITS: usize = 0xc;
-
-pub const MEMORY_END: usize = 0x8800_0000;
-
-pub const TRAMPOLINE: usize = usize::MAX - PAGE_SIZE + 1;
-pub const TRAP_CONTEXT: usize = TRAMPOLINE - PAGE_SIZE;
-
-pub const MMIO: &[(usize, usize)] = &[(0x0010_0000, 0x00_2000), (0x1000_1000, 0x00_1000)];
+pub const MEMORY_END: usize = 0x88000000;
+/// Virtio_Block设备中控制寄存器的基地址
+pub const MMIO: &[(usize, usize)] = &[(0x10001000, 0x1000)];

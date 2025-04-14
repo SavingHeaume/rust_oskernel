@@ -1,9 +1,7 @@
-use super::{
-    address::{PhysAddr, PhysPageNum, StepByOne, VirtAddr, VirtPageNum},
-    frame_allocator::{FrameTracker, frame_alloc},
-};
+use super::{FrameTracker, PhysAddr, PhysPageNum, StepByOne, VirtAddr, VirtPageNum, frame_alloc};
+use alloc::string::String;
+use alloc::vec;
 use alloc::vec::Vec;
-use alloc::{string::String, vec};
 use bitflags::*;
 
 bitflags! {
@@ -21,6 +19,7 @@ bitflags! {
 
 #[derive(Copy, Clone)]
 #[repr(C)]
+
 pub struct PageTableEntry {
     pub bits: usize,
 }
@@ -35,38 +34,41 @@ impl PageTableEntry {
     pub fn empty() -> Self {
         PageTableEntry { bits: 0 }
     }
-
+    /// 从页表项中获取物理页号
     pub fn ppn(&self) -> PhysPageNum {
         (self.bits >> 10 & ((1usize << 44) - 1)).into()
     }
-
+    /// 从页表项中获取flags
     pub fn flags(&self) -> PTEFlags {
-        PTEFlags::from_bits_truncate(self.bits as u8)
+        PTEFlags::from_bits(self.bits as u8).unwrap()
     }
 
     pub fn is_valid(&self) -> bool {
         (self.flags() & PTEFlags::V) != PTEFlags::empty()
     }
-
+   
     pub fn readable(&self) -> bool {
         (self.flags() & PTEFlags::R) != PTEFlags::empty()
     }
-
+ 
     pub fn writable(&self) -> bool {
         (self.flags() & PTEFlags::W) != PTEFlags::empty()
     }
-
+ 
     pub fn executable(&self) -> bool {
         (self.flags() & PTEFlags::X) != PTEFlags::empty()
     }
 }
+
 
 pub struct PageTable {
     root_ppn: PhysPageNum,
     frames: Vec<FrameTracker>,
 }
 
+
 impl PageTable {
+
     pub fn new() -> Self {
         let frame = frame_alloc().unwrap();
         PageTable {
@@ -74,19 +76,25 @@ impl PageTable {
             frames: vec![frame],
         }
     }
+    /// 暂时用于从用户空间获取参数
+    pub fn from_token(satp: usize) -> Self {
+        Self {
+            root_ppn: PhysPageNum::from(satp & ((1usize << 44) - 1)),
+            frames: Vec::new(),
+        }
+    }
 
-    // 在多级页表中找到一个虚拟地址对应的页表项
-    fn find_pte_crate(&mut self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
+    /// 在多级页表中找到一个虚拟地址对应的页表项
+    fn find_pte_create(&mut self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
         let idxs = vpn.indexes();
         let mut ppn = self.root_ppn;
         let mut result: Option<&mut PageTableEntry> = None;
-        for i in 0..3 {
-            let pte = &mut ppn.get_pte_array()[idxs[i]];
+        for (i, idx) in idxs.iter().enumerate() {
+            let pte = &mut ppn.get_pte_array()[*idx];
             if i == 2 {
                 result = Some(pte);
                 break;
             }
-
             if !pte.is_valid() {
                 let frame = frame_alloc().unwrap();
                 *pte = PageTableEntry::new(frame.ppn, PTEFlags::V);
@@ -97,12 +105,13 @@ impl PageTable {
         result
     }
 
+    /// 通过 VirtPageNum 查找 PageTableEntry
     fn find_pte(&self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
         let idxs = vpn.indexes();
         let mut ppn = self.root_ppn;
         let mut result: Option<&mut PageTableEntry> = None;
-        for i in 0..3 {
-            let pte = &mut ppn.get_pte_array()[idxs[i]];
+        for (i, idx) in idxs.iter().enumerate() {
+            let pte = &mut ppn.get_pte_array()[*idx];
             if i == 2 {
                 result = Some(pte);
                 break;
@@ -110,40 +119,33 @@ impl PageTable {
             if !pte.is_valid() {
                 return None;
             }
-            ppn = pte.ppn()
+            ppn = pte.ppn();
         }
         result
     }
 
-    // 多级页表中插入一个键值对
+    /// 多级页表中插入一个键值对
+    #[allow(unused)]
     pub fn map(&mut self, vpn: VirtPageNum, ppn: PhysPageNum, flags: PTEFlags) {
-        let pte = self.find_pte_crate(vpn).unwrap();
+        let pte = self.find_pte_create(vpn).unwrap();
         assert!(!pte.is_valid(), "vpn {:?} is mapped before mapping", vpn);
         *pte = PageTableEntry::new(ppn, flags | PTEFlags::V);
     }
 
-    // 删除一个键值对
+    /// 删除一个键值对
+    #[allow(unused)]
     pub fn unmap(&mut self, vpn: VirtPageNum) {
         let pte = self.find_pte(vpn).unwrap();
         assert!(pte.is_valid(), "vpn {:?} is invalid before unmapping", vpn);
         *pte = PageTableEntry::empty();
     }
 
-    pub fn from_token(satp: usize) -> Self {
-        Self {
-            root_ppn: PhysPageNum::from(satp & ((1usize << 44) - 1)),
-            frames: Vec::new(),
-        }
-    }
-
+    /// 根据虚拟页号获取页表项
     pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
         self.find_pte(vpn).map(|pte| *pte)
     }
 
-    pub fn token(&self) -> usize {
-        8usize << 60 | self.root_ppn.0
-    }
-
+    /// 从虚拟地址获取物理地址
     pub fn translate_va(&self, va: VirtAddr) -> Option<PhysAddr> {
         self.find_pte(va.clone().floor()).map(|pte| {
             let aligned_pa: PhysAddr = pte.ppn().into();
@@ -152,8 +154,13 @@ impl PageTable {
             (aligned_pa_usize + offset).into()
         })
     }
+
+    pub fn token(&self) -> usize {
+        8usize << 60 | self.root_ppn.0
+    }
 }
 
+/// Translate&Copy a ptr[u8] array with LENGTH len to a mutable u8 Vec through page table
 pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&'static mut [u8]> {
     let page_table = PageTable::from_token(token);
     let mut start = ptr as usize;
@@ -176,6 +183,7 @@ pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&
     v
 }
 
+/// Translate&Copy a ptr[u8] array end with `\0` to a `String` Vec through page table
 pub fn translated_str(token: usize, ptr: *const u8) -> String {
     let page_table = PageTable::from_token(token);
     let mut string = String::new();
@@ -185,17 +193,25 @@ pub fn translated_str(token: usize, ptr: *const u8) -> String {
             .translate_va(VirtAddr::from(va))
             .unwrap()
             .get_mut());
-
         if ch == 0 {
             break;
-        } else {
-            string.push(ch as char);
-            va += 1;
         }
+        string.push(ch as char);
+        va += 1;
     }
     string
 }
 
+#[allow(unused)]
+/// Translate a ptr[u8] array through page table and return a reference of T
+pub fn translated_ref<T>(token: usize, ptr: *const T) -> &'static T {
+    let page_table = PageTable::from_token(token);
+    page_table
+        .translate_va(VirtAddr::from(ptr as usize))
+        .unwrap()
+        .get_ref()
+}
+/// Translate a ptr[u8] array through page table and return a mutable reference of T
 pub fn translated_refmut<T>(token: usize, ptr: *mut T) -> &'static mut T {
     let page_table = PageTable::from_token(token);
     let va = ptr as usize;
@@ -205,11 +221,13 @@ pub fn translated_refmut<T>(token: usize, ptr: *mut T) -> &'static mut T {
         .get_mut()
 }
 
+/// 对从用户空间传递到内核空间的缓冲区的抽象
 pub struct UserBuffer {
     pub buffers: Vec<&'static mut [u8]>,
 }
 
 impl UserBuffer {
+
     pub fn new(buffers: Vec<&'static mut [u8]>) -> Self {
         Self { buffers }
     }
@@ -219,7 +237,43 @@ impl UserBuffer {
         for b in self.buffers.iter() {
             total += b.len();
         }
-
         total
+    }
+}
+
+impl IntoIterator for UserBuffer {
+    type Item = *mut u8;
+    type IntoIter = UserBufferIterator;
+    fn into_iter(self) -> Self::IntoIter {
+        UserBufferIterator {
+            buffers: self.buffers,
+            current_buffer: 0,
+            current_idx: 0,
+        }
+    }
+}
+
+
+pub struct UserBufferIterator {
+    buffers: Vec<&'static mut [u8]>,
+    current_buffer: usize,
+    current_idx: usize,
+}
+
+impl Iterator for UserBufferIterator {
+    type Item = *mut u8;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current_buffer >= self.buffers.len() {
+            None
+        } else {
+            let r = &mut self.buffers[self.current_buffer][self.current_idx] as *mut _;
+            if self.current_idx + 1 == self.buffers[self.current_buffer].len() {
+                self.current_idx = 0;
+                self.current_buffer += 1;
+            } else {
+                self.current_idx += 1;
+            }
+            Some(r)
+        }
     }
 }

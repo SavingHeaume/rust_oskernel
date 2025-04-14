@@ -1,0 +1,45 @@
+{
+  // 使用 IntelliSense 了解相关属性。 
+  // 悬停以查看现有属性的描述。
+  // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Rust GDB Remote Debug",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/kernel/target/riscv64gc-unknown-none-elf/release/kernel",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "setupCommands": [
+        {
+          "description": "为 gdb 启用整齐打印",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        },
+        {
+          "description": "Set architecture to riscv:rv64",
+          "text": "set arch riscv:rv64",
+          "ignoreFailures": false
+        },
+      ],
+      // RISC-V工具链中的gdb
+      "miDebuggerPath": "riscv64-elf-gdb",
+      // gdb server 的地址端口
+      "miDebuggerServerAddress": "localhost:1234"
+    },
+    {
+      "type": "lldb",
+      "request": "attach",
+      "processCreateCommands": [
+        "gdb-remote localhost:1234"
+      ],
+      "name": "lldb attach",
+      "program": "${workspaceFolder}/kernel/target/riscv64gc-unknown-none-elf/release/kernel",
+    },
+  ]
+}

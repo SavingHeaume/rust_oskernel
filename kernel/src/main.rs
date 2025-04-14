@@ -2,52 +2,56 @@
 #![no_main]
 #![feature(alloc_error_handler)]
 
-extern crate alloc;
+#[macro_use]
+extern crate bitflags;
+#[macro_use]
 extern crate log;
 
-use core::arch::global_asm;
-use log::*;
+extern crate alloc;
 
 #[macro_use]
 mod console;
-mod config;
-mod drivers;
-mod fs;
-mod lang_items;
-mod logging;
-mod mm;
-mod process;
-mod sbi;
-mod sync;
-mod syscall;
-mod timer;
-mod trap;
+pub mod config;
+pub mod drivers;
+pub mod fs;
+pub mod lang_items;
+pub mod logging;
+pub mod mm;
+pub mod sbi;
+pub mod sync;
+pub mod syscall;
+pub mod task;
+pub mod timer;
+pub mod trap;
+
+use core::arch::global_asm;
 
 global_asm!(include_str!("entry.asm"));
-
-pub fn clear_bss() {
+/// clear BSS segment
+fn clear_bss() {
     unsafe extern "C" {
-        safe fn sbss();
-        safe fn ebss();
+        fn sbss();
+        fn ebss();
     }
     unsafe {
         core::slice::from_raw_parts_mut(sbss as usize as *mut u8, ebss as usize - sbss as usize)
-            .fill(0)
+            .fill(0);
     }
 }
 
 #[unsafe(no_mangle)]
+/// the rust entry-point of os
 pub fn rust_main() -> ! {
     clear_bss();
+    println!("[kernel] Hello, world!");
     logging::init();
-    info!("hello, world!");
     mm::init();
     mm::remap_test();
     trap::init();
     trap::enable_timer_interrupt();
     timer::set_next_trigger();
     fs::list_apps();
-    process::add_initproc();
-    process::run_process();
-    panic!("unreachable in rust_main!");
+    task::add_initproc();
+    task::run_tasks();
+    panic!("Unreachable in rust_main!");
 }

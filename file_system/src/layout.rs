@@ -1,25 +1,25 @@
-use crate::BLOCK_SZ;
-use crate::block_cache::get_block_cache;
-use crate::block_dev::BlockDevice;
+use super::{BLOCK_SZ, BlockDevice, get_block_cache};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
+use core::fmt::{Debug, Formatter, Result};
 
+/// Magic number
 const EFS_MAGIC: u32 = 0x3b800001;
-// 直接索引节点的最大数量
+/// 直接索引节点的最大数量
 const INODE_DIRECT_COUNT: usize = 28;
-// indirect1索引节点的最大数量
+/// 索引节点名称的最大长度
+const NAME_LENGTH_LIMIT: usize = 27;
+/// indirect1索引节点的最大数量
 const INODE_INDIRECT1_COUNT: usize = BLOCK_SZ / 4;
-// 直接索引节点索引的上限
-const DIRECT_BOUND: usize = INODE_DIRECT_COUNT;
-// indirect1索引的上限
-const INDIRECT1_BOUND: usize = DIRECT_BOUND + INODE_INDIRECT1_COUNT;
-
+/// indirect2索引节点的最大数量
 const INODE_INDIRECT2_COUNT: usize = INODE_INDIRECT1_COUNT * INODE_INDIRECT1_COUNT;
+/// 直接索引节点索引的上限
+const DIRECT_BOUND: usize = INODE_DIRECT_COUNT;
+/// 间接索引节点1索引的上限
+const INDIRECT1_BOUND: usize = DIRECT_BOUND + INODE_INDIRECT1_COUNT;
+/// 间接索引节点2索引的上限
 #[allow(unused)]
-const INDIRECT2_DOUND: usize = INDIRECT1_BOUND + INODE_INDIRECT2_COUNT;
-
-const NAME_LENGTH_LTMIT: usize = 27;
-pub const DIRENT_SZ: usize = 32;
+const INDIRECT2_BOUND: usize = INDIRECT1_BOUND + INODE_INDIRECT2_COUNT;
 
 #[repr(C)]
 pub struct SuperBlock {
@@ -29,6 +29,18 @@ pub struct SuperBlock {
     pub inode_area_blocks: u32,
     pub data_bitmap_blocks: u32,
     pub data_area_blocks: u32,
+}
+
+impl Debug for SuperBlock {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        f.debug_struct("SuperBlock")
+            .field("total_blocks", &self.total_blocks)
+            .field("inode_bitmap_blocks", &self.inode_bitmap_blocks)
+            .field("inode_area_blocks", &self.inode_area_blocks)
+            .field("data_bitmap_blocks", &self.data_bitmap_blocks)
+            .field("data_area_blocks", &self.data_area_blocks)
+            .finish()
+    }
 }
 
 impl SuperBlock {
@@ -55,8 +67,15 @@ impl SuperBlock {
     }
 }
 
+#[derive(PartialEq)]
+pub enum DiskInodeType {
+    File,
+    Directory,
+}
+
 type IndirectBlock = [u32; BLOCK_SZ / 4];
-pub type DataBlock = [u8; BLOCK_SZ];
+
+type DataBlock = [u8; BLOCK_SZ];
 
 #[repr(C)]
 pub struct DiskInode {
@@ -65,12 +84,6 @@ pub struct DiskInode {
     pub indirect1: u32,
     pub indirect2: u32,
     type_: DiskInodeType,
-}
-
-#[derive(PartialEq)]
-pub enum DiskInodeType {
-    File,
-    Directory,
 }
 
 impl DiskInode {
@@ -86,8 +99,38 @@ impl DiskInode {
         self.type_ == DiskInodeType::Directory
     }
 
+    #[allow(unused)]
     pub fn is_file(&self) -> bool {
         self.type_ == DiskInodeType::File
+    }
+
+    pub fn data_blocks(&self) -> u32 {
+        Self::_data_blocks(self.size)
+    }
+    fn _data_blocks(size: u32) -> u32 {
+        (size + BLOCK_SZ as u32 - 1) / BLOCK_SZ as u32
+    }
+
+    pub fn total_blocks(size: u32) -> u32 {
+        let data_blocks = Self::_data_blocks(size) as usize;
+        let mut total = data_blocks as usize;
+        // indirect1
+        if data_blocks > INODE_DIRECT_COUNT {
+            total += 1;
+        }
+        // indirect2
+        if data_blocks > INDIRECT1_BOUND {
+            total += 1;
+            // sub indirect1
+            total +=
+                (data_blocks - INDIRECT1_BOUND + INODE_INDIRECT1_COUNT - 1) / INODE_INDIRECT1_COUNT;
+        }
+        total as u32
+    }
+
+    pub fn blocks_num_needed(&self, new_size: u32) -> u32 {
+        assert!(new_size >= self.size);
+        Self::total_blocks(new_size) - Self::total_blocks(self.size)
     }
 
     pub fn get_block_id(&self, inner_id: u32, block_device: &Arc<dyn BlockDevice>) -> u32 {
@@ -102,45 +145,17 @@ impl DiskInode {
                 })
         } else {
             let last = inner_id - INDIRECT1_BOUND;
-            let indirec1 = get_block_cache(self.indirect2 as usize, Arc::clone(block_device))
+            let indirect1 = get_block_cache(self.indirect2 as usize, Arc::clone(block_device))
                 .lock()
                 .read(0, |indirect2: &IndirectBlock| {
                     indirect2[last / INODE_INDIRECT1_COUNT]
                 });
-
-            get_block_cache(indirec1 as usize, Arc::clone(block_device))
+            get_block_cache(indirect1 as usize, Arc::clone(block_device))
                 .lock()
-                .read(0, |indirec1: &IndirectBlock| {
-                    indirec1[last % INODE_INDIRECT1_COUNT]
+                .read(0, |indirect1: &IndirectBlock| {
+                    indirect1[last % INODE_INDIRECT1_COUNT]
                 })
         }
-    }
-
-    pub fn data_block(&self) -> u32 {
-        Self::_data_blocks(self.size)
-    }
-
-    fn _data_blocks(size: u32) -> u32 {
-        (size + BLOCK_SZ as u32 - 1) / BLOCK_SZ as u32
-    }
-
-    pub fn total_blocks(size: u32) -> u32 {
-        let data_blocks = Self::_data_blocks(size) as usize;
-        let mut total = data_blocks as usize;
-        if data_blocks > INODE_DIRECT_COUNT {
-            total += 1;
-        }
-        if data_blocks > INDIRECT1_BOUND {
-            total += 1;
-            total +=
-                (data_blocks - INDIRECT1_BOUND + INODE_INDIRECT1_COUNT - 1) / INODE_INDIRECT1_COUNT;
-        }
-        total as u32
-    }
-
-    pub fn blocks_num_needed(&self, new_size: u32) -> u32 {
-        assert!(new_size >= self.size);
-        Self::total_blocks(new_size) - Self::total_blocks(self.size)
     }
 
     pub fn increase_size(
@@ -149,9 +164,9 @@ impl DiskInode {
         new_blocks: Vec<u32>,
         block_device: &Arc<dyn BlockDevice>,
     ) {
-        let mut current_blocks = self.data_block();
+        let mut current_blocks = self.data_blocks();
         self.size = new_size;
-        let mut total_blocks = self.data_block();
+        let mut total_blocks = self.data_blocks();
         let mut new_blocks = new_blocks.into_iter();
 
         // 直接存储
@@ -218,7 +233,6 @@ impl DiskInode {
                         .modify(0, |indirect1: &mut IndirectBlock| {
                             indirect1[b0] = new_blocks.next().unwrap();
                         });
-
                     // 移动到下一个位置
                     b0 += 1;
                     if b0 == INODE_INDIRECT1_COUNT {
@@ -226,12 +240,12 @@ impl DiskInode {
                         a0 += 1;
                     }
                 }
-            })
+            });
     }
 
     pub fn clear_size(&mut self, block_device: &Arc<dyn BlockDevice>) -> Vec<u32> {
         let mut v: Vec<u32> = Vec::new();
-        let mut data_blocks = self.data_block() as usize;
+        let mut data_blocks = self.data_blocks() as usize;
         self.size = 0;
         let mut current_blocks = 0usize;
 
@@ -256,6 +270,7 @@ impl DiskInode {
             .modify(0, |indirect1: &mut IndirectBlock| {
                 while current_blocks < data_blocks.min(INODE_INDIRECT1_COUNT) {
                     v.push(indirect1[current_blocks]);
+                    //indirect1[current_blocks] = 0;
                     current_blocks += 1;
                 }
             });
@@ -272,7 +287,6 @@ impl DiskInode {
         assert!(data_blocks <= INODE_INDIRECT2_COUNT);
         let a1 = data_blocks / INODE_INDIRECT1_COUNT;
         let b1 = data_blocks % INODE_INDIRECT1_COUNT;
-
         get_block_cache(self.indirect2 as usize, Arc::clone(block_device))
             .lock()
             .modify(0, |indirect2: &mut IndirectBlock| {
@@ -295,12 +309,11 @@ impl DiskInode {
                             for entry in indirect1.iter().take(b1) {
                                 v.push(*entry);
                             }
-                        })
+                        });
+                    //indirect2[a1] = 0;
                 }
             });
-
         self.indirect2 = 0;
-
         v
     }
 
@@ -315,13 +328,13 @@ impl DiskInode {
         if start >= end {
             return 0;
         }
-
         let mut start_block = start / BLOCK_SZ;
         let mut read_size = 0usize;
         loop {
+            // calculate end of current block
             let mut end_current_block = (start / BLOCK_SZ + 1) * BLOCK_SZ;
             end_current_block = end_current_block.min(end);
-
+            // read and update read size
             let block_read_size = end_current_block - start;
             let dst = &mut buf[read_size..read_size + block_read_size];
             get_block_cache(
@@ -334,15 +347,13 @@ impl DiskInode {
                 dst.copy_from_slice(src);
             });
             read_size += block_read_size;
-
+            // move to next block
             if end_current_block == end {
                 break;
             }
-
             start_block += 1;
             start = end_current_block;
         }
-
         read_size
     }
 
@@ -357,12 +368,12 @@ impl DiskInode {
         assert!(start <= end);
         let mut start_block = start / BLOCK_SZ;
         let mut write_size = 0usize;
-
         loop {
+            // calculate end of current block
             let mut end_current_block = (start / BLOCK_SZ + 1) * BLOCK_SZ;
             end_current_block = end_current_block.min(end);
+            // write and update write size
             let block_write_size = end_current_block - start;
-
             get_block_cache(
                 self.get_block_id(start_block as u32, block_device) as usize,
                 Arc::clone(block_device),
@@ -373,40 +384,48 @@ impl DiskInode {
                 let dst = &mut data_block[start % BLOCK_SZ..start % BLOCK_SZ + block_write_size];
                 dst.copy_from_slice(src);
             });
-
             write_size += block_write_size;
+            // move to next block
             if end_current_block == end {
                 break;
             }
             start_block += 1;
             start = end_current_block;
         }
-
         write_size
     }
 }
 
-#[repr(C)]
 pub struct DirEntry {
-    name: [u8; NAME_LENGTH_LTMIT + 1],
+    name: [u8; NAME_LENGTH_LIMIT + 1],
     inode_number: u32,
 }
+
+pub const DIRENT_SZ: usize = 32;
 
 impl DirEntry {
     pub fn empty() -> Self {
         Self {
-            name: [0u8; NAME_LENGTH_LTMIT + 1],
+            name: [0u8; NAME_LENGTH_LIMIT + 1],
             inode_number: 0,
         }
     }
 
     pub fn new(name: &str, inode_number: u32) -> Self {
-        let mut bytes = [0u8; NAME_LENGTH_LTMIT + 1];
+        let mut bytes = [0u8; NAME_LENGTH_LIMIT + 1];
         bytes[..name.len()].copy_from_slice(name.as_bytes());
         Self {
             name: bytes,
             inode_number,
         }
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { core::slice::from_raw_parts(self as *const _ as usize as *const u8, DIRENT_SZ) }
+    }
+
+    pub fn as_bytes_mut(&mut self) -> &mut [u8] {
+        unsafe { core::slice::from_raw_parts_mut(self as *mut _ as usize as *mut u8, DIRENT_SZ) }
     }
 
     pub fn name(&self) -> &str {
@@ -416,13 +435,5 @@ impl DirEntry {
 
     pub fn inode_number(&self) -> u32 {
         self.inode_number
-    }
-
-    pub fn as_bytes(&self) -> &[u8] {
-        unsafe { core::slice::from_raw_parts(self as *const _ as usize as *const u8, DIRENT_SZ) }
-    }
-
-    pub fn as_bytes_mut(&mut self) -> &mut [u8] {
-        unsafe { core::slice::from_raw_parts_mut(self as *mut _ as usize as *mut u8, DIRENT_SZ) }
     }
 }

@@ -1,10 +1,7 @@
-use crate::{
-    mm::UserBuffer,
-    process::{current_process, suspend_current_and_run_next},
-    sbi::console_getchar,
-};
-
 use super::File;
+use crate::mm::UserBuffer;
+use crate::sbi::console_getchar;
+use crate::task::suspend_current_and_run_next;
 
 pub struct Stdin;
 pub struct Stdout;
@@ -16,9 +13,9 @@ impl File for Stdin {
     fn writable(&self) -> bool {
         false
     }
-
     fn read(&self, mut user_buf: UserBuffer) -> usize {
         assert_eq!(user_buf.len(), 1);
+        // busy loop
         let mut c: usize;
         loop {
             c = console_getchar();
@@ -35,9 +32,8 @@ impl File for Stdin {
         }
         1
     }
-
-    fn write(&self, _buf: UserBuffer) -> usize {
-        panic!("Cannot write to stdin");
+    fn write(&self, _user_buf: UserBuffer) -> usize {
+        panic!("Cannot write to stdin!");
     }
 }
 
@@ -49,7 +45,7 @@ impl File for Stdout {
         true
     }
     fn read(&self, _user_buf: UserBuffer) -> usize {
-        panic!("Cannot read from stdout");
+        panic!("Cannot read from stdout!");
     }
     fn write(&self, user_buf: UserBuffer) -> usize {
         for buffer in user_buf.buffers.iter() {

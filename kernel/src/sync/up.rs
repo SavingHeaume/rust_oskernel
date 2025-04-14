@@ -1,6 +1,7 @@
 use core::cell::{RefCell, RefMut};
 
 pub struct UPSafeCell<T> {
+
     inner: RefCell<T>,
 }
 
@@ -12,8 +13,8 @@ impl<T> UPSafeCell<T> {
             inner: RefCell::new(value),
         }
     }
+    
     pub fn exclusive_access(&self) -> RefMut<'_, T> {
         self.inner.borrow_mut()
     }
 }
-

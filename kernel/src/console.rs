@@ -16,18 +16,18 @@ pub fn print(args: fmt::Arguments) {
     Stdout.write_fmt(args).unwrap();
 }
 
-/// print string macro
+/// Print! to the host console using the format string and arguments.
 #[macro_export]
 macro_rules! print {
     ($fmt: literal $(, $($arg: tt)+)?) => {
-        $crate::console::print(format_args!($fmt $(, $($arg)+)?));
+        $crate::console::print(format_args!($fmt $(, $($arg)+)?))
     }
 }
 
-/// println string macro
+/// Println! to the host console using the format string and arguments.
 #[macro_export]
 macro_rules! println {
     ($fmt: literal $(, $($arg: tt)+)?) => {
-        $crate::console::print(format_args!(concat!($fmt, "\n") $(, $($arg)+)?));
+        $crate::console::print(format_args!(concat!($fmt, "\n") $(, $($arg)+)?))
     }
 }

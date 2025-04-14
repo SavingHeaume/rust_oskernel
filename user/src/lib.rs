@@ -7,7 +7,10 @@ pub mod console;
 mod lang_items;
 mod syscall;
 
-use bitflags::bitflags;
+extern crate alloc;
+#[macro_use]
+extern crate bitflags;
+
 use buddy_system_allocator::LockedHeap;
 use core::ptr::addr_of_mut;
 use syscall::*;
@@ -50,43 +53,43 @@ bitflags! {
     }
 }
 
+pub fn open(path: &str, flags: OpenFlags) -> isize {
+    sys_open(path, flags.bits)
+}
+pub fn close(fd: usize) -> isize {
+    sys_close(fd)
+}
+pub fn read(fd: usize, buf: &mut [u8]) -> isize {
+    sys_read(fd, buf)
+}
 pub fn write(fd: usize, buf: &[u8]) -> isize {
     sys_write(fd, buf)
 }
 pub fn exit(exit_code: i32) -> ! {
-    sys_exit(exit_code)
+    sys_exit(exit_code);
 }
-
 pub fn yield_() -> isize {
-    sys_yield_()
+    sys_yield()
 }
-
 pub fn get_time() -> isize {
     sys_get_time()
 }
-
-pub fn sbrk(size: i32) -> isize {
-    sys_sbrk(size)
+pub fn getpid() -> isize {
+    sys_getpid()
 }
-
-pub fn read(fd: usize, buf: &mut [u8]) -> isize {
-    sys_read(fd, buf)
-}
-
 pub fn fork() -> isize {
     sys_fork()
 }
-
 pub fn exec(path: &str) -> isize {
     sys_exec(path)
 }
-
 pub fn wait(exit_code: &mut i32) -> isize {
     loop {
         match sys_waitpid(-1, exit_code as *mut _) {
             -2 => {
                 yield_();
             }
+            // -1 or a real pid
             exit_pid => return exit_pid,
         }
     }
@@ -98,26 +101,14 @@ pub fn waitpid(pid: usize, exit_code: &mut i32) -> isize {
             -2 => {
                 yield_();
             }
+            // -1 or a real pid
             exit_pid => return exit_pid,
         }
     }
 }
-
-pub fn getpid() -> isize {
-    sys_getpid()
-}
-
 pub fn sleep(period_ms: usize) {
     let start = sys_get_time();
     while sys_get_time() < start + period_ms as isize {
-        sys_yield_();
+        sys_yield();
     }
-}
-
-pub fn open(path: &str, flags: OpenFlags) -> isize {
-    sys_open(path, flags.bits)
-}
-
-pub fn close(fd: usize) -> isize {
-    sys_close(fd)
 }

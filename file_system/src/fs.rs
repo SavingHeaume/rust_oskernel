@@ -1,9 +1,8 @@
+use super::{
+    Bitmap, BlockDevice, DiskInode, DiskInodeType, Inode, SuperBlock, block_cache_sync_all,
+    get_block_cache,
+};
 use crate::BLOCK_SZ;
-use crate::bitmap::Bitmap;
-use crate::block_cache::{block_cache_sync_all, get_block_cache};
-use crate::block_dev::BlockDevice;
-use crate::layout::{DataBlock, DiskInode, DiskInodeType, SuperBlock};
-use crate::vfs::Inode;
 use alloc::sync::Arc;
 use spin::Mutex;
 
@@ -14,6 +13,8 @@ pub struct FileSystem {
     inode_area_start_block: u32,
     data_area_start_block: u32,
 }
+
+type DataBlock = [u8; BLOCK_SZ];
 
 impl FileSystem {
     pub fn create(
@@ -31,7 +32,7 @@ impl FileSystem {
         let data_bitmap_blocks = (data_total_blocks + 4096) / 4097;
         let data_area_blocks = data_total_blocks - data_bitmap_blocks;
         let data_bitmap = Bitmap::new(
-            (1 + inode_bitmap_blocks + inode_area_blocks) as usize,
+            (1 + inode_total_blocks) as usize,
             data_bitmap_blocks as usize,
         );
 
@@ -53,7 +54,7 @@ impl FileSystem {
                     }
                 });
         }
-
+        
         // 初始化超级块
         get_block_cache(0, Arc::clone(&block_device)).lock().modify(
             0,
@@ -76,15 +77,61 @@ impl FileSystem {
             .modify(root_inode_offset, |disk_inode: &mut DiskInode| {
                 disk_inode.initialize(DiskInodeType::Directory);
             });
-
         block_cache_sync_all();
-
         Arc::new(Mutex::new(fs))
+    }
+
+    /// 在一个已写入了文件系统镜像的块设备上打开文件系统
+    pub fn open(block_device: Arc<dyn BlockDevice>) -> Arc<Mutex<Self>> {
+        // read SuperBlock
+        get_block_cache(0, Arc::clone(&block_device))
+            .lock()
+            .read(0, |super_block: &SuperBlock| {
+                assert!(super_block.is_valid(), "Error loading EFS!");
+                let inode_total_blocks =
+                    super_block.inode_bitmap_blocks + super_block.inode_area_blocks;
+                let efs = Self {
+                    block_device,
+                    inode_bitmap: Bitmap::new(1, super_block.inode_bitmap_blocks as usize),
+                    data_bitmap: Bitmap::new(
+                        (1 + inode_total_blocks) as usize,
+                        super_block.data_bitmap_blocks as usize,
+                    ),
+                    inode_area_start_block: 1 + super_block.inode_bitmap_blocks,
+                    data_area_start_block: 1 + inode_total_blocks + super_block.data_bitmap_blocks,
+                };
+                Arc::new(Mutex::new(efs))
+            })
+    }
+
+    /// Get the root inode
+    pub fn root_inode(efs: &Arc<Mutex<Self>>) -> Inode {
+        let block_device = Arc::clone(&efs.lock().block_device);
+        // acquire efs lock temporarily
+        let (block_id, block_offset) = efs.lock().get_disk_inode_pos(0);
+        // release efs lock
+        Inode::new(block_id, block_offset, Arc::clone(efs), block_device)
+    }
+
+    /// 从 inode位图 或数据块位图上分配的 bit 编号，来算出各个存储inode和数据块的磁盘块在磁盘上的实际位置
+    pub fn get_disk_inode_pos(&self, inode_id: u32) -> (u32, usize) {
+        let inode_size = core::mem::size_of::<DiskInode>();
+        let inodes_per_block = (BLOCK_SZ / inode_size) as u32;
+        let block_id = self.inode_area_start_block + inode_id / inodes_per_block;
+        (
+            block_id,
+            (inode_id % inodes_per_block) as usize * inode_size,
+        )
+    }
+
+    pub fn get_data_block_id(&self, data_block_id: u32) -> u32 {
+        self.data_area_start_block + data_block_id
     }
 
     pub fn alloc_inode(&mut self) -> u32 {
         self.inode_bitmap.alloc(&self.block_device).unwrap() as u32
     }
+
 
     pub fn alloc_data(&mut self) -> u32 {
         self.data_bitmap.alloc(&self.block_device).unwrap() as u32 + self.data_area_start_block
@@ -98,53 +145,9 @@ impl FileSystem {
                     *p = 0;
                 })
             });
-
         self.data_bitmap.dealloc(
             &self.block_device,
             (block_id - self.data_area_start_block) as usize,
         )
-    }
-
-    // 从 inode位图 或数据块位图上分配的 bit 编号，来算出各个存储inode和数据块的磁盘块在磁盘上的实际位置
-    pub fn get_disk_inode_pos(&self, inode_id: u32) -> (u32, usize) {
-        let inode_size = core::mem::size_of::<DiskInode>();
-        let inode_per_block = (BLOCK_SZ / inode_size) as u32;
-        let block_id = self.inode_area_start_block + inode_id / inode_per_block;
-        (block_id, (inode_id % inode_per_block) as usize * inode_size)
-    }
-    pub fn get_data_block_id(&self, data_block_id: u32) -> u32 {
-        self.data_area_start_block + data_block_id
-    }
-
-    // 在一个已写入了文件系统镜像的块设备上打开文件系统
-    pub fn open(block_device: Arc<dyn BlockDevice>) -> Arc<Mutex<Self>> {
-        get_block_cache(0, Arc::clone(&block_device))
-            .lock()
-            .read(0, |super_block: &SuperBlock| {
-                {}
-                assert!(super_block.is_valid(), "Error loading FS");
-                let inode_total_blocks =
-                    super_block.inode_bitmap_blocks + super_block.inode_area_blocks;
-                let fs = Self {
-                    block_device,
-                    inode_bitmap: Bitmap::new(1, super_block.inode_bitmap_blocks as usize),
-                    data_bitmap: Bitmap::new(
-                        (1 + inode_total_blocks) as usize,
-                        super_block.data_bitmap_blocks as usize,
-                    ),
-                    inode_area_start_block: 1 + super_block.inode_bitmap_blocks,
-                    data_area_start_block: 1 + inode_total_blocks + super_block.data_bitmap_blocks,
-                };
-
-                Arc::new(Mutex::new(fs))
-            })
-    }
-
-    pub fn root_inode(fs: &Arc<Mutex<Self>>) -> Inode {
-        let block_device = Arc::clone(&fs.lock().block_device);
-
-        let (block_id, block_offset) = fs.lock().get_disk_inode_pos(0);
-
-        Inode::new(block_id, block_offset, Arc::clone(fs), block_device)
     }
 }

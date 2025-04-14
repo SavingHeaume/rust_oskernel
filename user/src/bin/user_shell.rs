@@ -1,5 +1,6 @@
 #![no_std]
 #![no_main]
+#![allow(clippy::println_empty_string)]
 
 extern crate alloc;
 
@@ -12,14 +13,14 @@ const DL: u8 = 0x7fu8;
 const BS: u8 = 0x08u8;
 
 use alloc::string::String;
-use user_lib::{exec, fork, waitpid};
 use user_lib::console::getchar;
+use user_lib::{exec, fork, waitpid};
 
 #[unsafe(no_mangle)]
 pub fn main() -> i32 {
-    println!("rust user shell");
+    println!("Rust user shell");
     let mut line: String = String::new();
-    print!(">>");
+    print!(">> ");
     loop {
         let c = getchar();
         match c {
@@ -29,8 +30,9 @@ pub fn main() -> i32 {
                     line.push('\0');
                     let pid = fork();
                     if pid == 0 {
+                        // child process
                         if exec(line.as_str()) == -1 {
-                            println!("shell: error when exec");
+                            println!("Error when executing!");
                             return -4;
                         }
                         unreachable!();
@@ -38,11 +40,11 @@ pub fn main() -> i32 {
                         let mut exit_code: i32 = 0;
                         let exit_pid = waitpid(pid as usize, &mut exit_code);
                         assert_eq!(pid, exit_pid);
-                        println!("shell: Process {} exited with code {}", pid, exit_code);
+                        println!("Shell: Process {} exited with code {}", pid, exit_code);
                     }
                     line.clear();
                 }
-                print!(">>");
+                print!(">> ");
             }
             BS | DL => {
                 if !line.is_empty() {
