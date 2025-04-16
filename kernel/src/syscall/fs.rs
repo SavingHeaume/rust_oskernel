@@ -1,7 +1,20 @@
-use crate::fs::{OpenFlags, make_pipe, open_file};
+use crate::fs::{OpenFlags, ROOT_INODE, make_pipe, open_file};
 use crate::mm::{UserBuffer, translated_byte_buffer, translated_refmut, translated_str};
 use crate::task::{current_task, current_user_token};
 use alloc::sync::Arc;
+
+pub fn sys_getdents(fd: usize, buf: *const u8, len: usize) -> isize {
+    let vec = ROOT_INODE.ls();
+    let max_width = vec.iter().map(|s| s.len()).max().unwrap_or(0);
+
+    for chunk in vec.chunks(5) {
+        for s in chunk {
+            print!("{:width$}  ", s, width = max_width); // 两个空格分隔
+        }
+        print!("\n");
+    }
+    0
+}
 
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     let token = current_user_token();

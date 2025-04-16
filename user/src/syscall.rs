@@ -19,6 +19,7 @@ const SYSCALL_GETPID: usize = 172;
 const SYSCALL_FORK: usize = 220;
 const SYSCALL_EXEC: usize = 221;
 const SYSCALL_WAITPID: usize = 260;
+const SYSCALL_GETDENTS: usize = 61;
 
 fn syscall(id: usize, args: [usize; 3]) -> isize {
     let mut ret: isize;
@@ -55,6 +56,16 @@ pub fn sys_read(fd: usize, buffer: &mut [u8]) -> isize {
         SYSCALL_READ,
         [fd, buffer.as_mut_ptr() as usize, buffer.len()],
     )
+}
+
+pub fn sys_getdents(fd: usize, buffer: &mut [u8]) -> isize {
+    /*
+    syscall(
+        SYSCALL_GETDENTS,
+        [fd, buffer.as_mut_ptr() as usize, buffer.len()],
+    );
+    */
+    syscall(SYSCALL_GETDENTS, [0, 0, 0])
 }
 
 pub fn sys_write(fd: usize, buffer: &[u8]) -> isize {
