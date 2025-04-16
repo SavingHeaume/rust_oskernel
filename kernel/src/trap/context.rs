@@ -1,7 +1,7 @@
 use riscv::register::sstatus::{self, SPP, Sstatus};
 
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 /// 包含所有的通用寄存器 x0~x31 ，还有 sstatus 和 sepc
 pub struct TrapContext {
     /// 通用寄存器 x0-31
@@ -37,10 +37,10 @@ impl TrapContext {
             sstatus,
             sepc: entry,  // 应用程序入口点
             kernel_satp,  // 页表地址
-            kernel_sp,    
-            trap_handler, 
+            kernel_sp,
+            trap_handler,
         };
         cx.set_sp(sp); // 应用程序的用户栈指针
-        cx 
+        cx
     }
 }

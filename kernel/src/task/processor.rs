@@ -51,19 +51,18 @@ pub fn run_tasks() {
         let mut processor = PROCESSOR.exclusive_access();
         if let Some(task) = fetch_task() {
             let idle_task_cx_ptr = processor.get_idle_task_cx_ptr();
-
+            // access coming task TCB exclusively
             let mut task_inner = task.inner_exclusive_access();
             let next_task_cx_ptr = &task_inner.task_cx as *const TaskContext;
             task_inner.task_status = TaskStatus::Running;
-
             drop(task_inner);
+            // release coming task TCB manually
             processor.current = Some(task);
+            // release processor manually
             drop(processor);
             unsafe {
                 __switch(idle_task_cx_ptr, next_task_cx_ptr);
             }
-        } else {
-            warn!("no tasks available in run_tasks");
         }
     }
 }
@@ -78,7 +77,8 @@ pub fn current_task() -> Option<Arc<TaskControlBlock>> {
 
 pub fn current_user_token() -> usize {
     let task = current_task().unwrap();
-    task.get_user_token()
+    let token = task.inner_exclusive_access().get_user_token();
+    token
 }
 
 ///获取当前任务的trap上下文的可变引用

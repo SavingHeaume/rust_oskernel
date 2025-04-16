@@ -1,9 +1,10 @@
 mod context;
 
-use crate::config::{TRAMPOLINE, TRAP_CONTEXT_BASE};
+use crate::config::{TRAMPOLINE, TRAP_CONTEXT};
 use crate::syscall::syscall;
 use crate::task::{
-    current_trap_cx, current_user_token, exit_current_and_run_next, suspend_current_and_run_next,
+    SignalFlags, check_signals_error_of_current, current_add_signal, current_trap_cx,
+    current_user_token, exit_current_and_run_next, handle_signals, suspend_current_and_run_next,
 };
 use crate::timer::set_next_trigger;
 use core::arch::{asm, global_asm};
@@ -38,20 +39,20 @@ pub fn enable_timer_interrupt() {
     }
 }
 
-/// trap handler
 #[unsafe(no_mangle)]
 pub fn trap_handler() -> ! {
     set_kernel_trap_entry();
     let scause = scause::read();
     let stval = stval::read();
-    // trace!("into {:?}", scause.cause());
     match scause.cause() {
         // 应用程序发起系统调用
         Trap::Exception(Exception::UserEnvCall) => {
+            // jump to next instruction anyway
             let mut cx = current_trap_cx();
             cx.sepc += 4;
-            info!("syscall_id: {}", cx.x[17]);
+            // get system call return value
             let result = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]);
+            // cx is changed during sys_exec, so we have to call it again
             cx = current_trap_cx();
             cx.x[10] = result as usize;
         }
@@ -63,21 +64,20 @@ pub fn trap_handler() -> ! {
         | Trap::Exception(Exception::InstructionPageFault)
         | Trap::Exception(Exception::LoadFault)
         | Trap::Exception(Exception::LoadPageFault) => {
+            /*
             println!(
-                "[kernel] trap_handler:  {:?} in application, bad addr = {:#x}, bad instruction = {:#x}, kernel killed it.",
+                "[kernel] {:?} in application, bad addr = {:#x}, bad instruction = {:#x}, kernel killed it.",
                 scause.cause(),
                 stval,
                 current_trap_cx().sepc,
             );
-            // page fault exit code
-            exit_current_and_run_next(-2);
+            */
+            current_add_signal(SignalFlags::SIGSEGV);
         }
 
         // 处理非法指令错误
         Trap::Exception(Exception::IllegalInstruction) => {
-            println!("[kernel] IllegalInstruction in application, kernel killed it.");
-            // illegal instruction exit code
-            exit_current_and_run_next(-3);
+            current_add_signal(SignalFlags::SIGILL);
         }
 
         // 时间中断
@@ -93,21 +93,31 @@ pub fn trap_handler() -> ! {
             );
         }
     }
-    //println!("before trap_return");
+    // handle signals (handle the sent signal)
+    //println!("[K] trap_handler:: handle_signals");
+    handle_signals();
+
+    // check error signals (if error then exit)
+    if let Some((errno, msg)) = check_signals_error_of_current() {
+        println!("[kernel] {}", msg);
+        exit_current_and_run_next(errno);
+    }
     trap_return();
 }
 
 #[unsafe(no_mangle)]
+/// set the new addr of __restore asm function in TRAMPOLINE page,
+/// set the reg a0 = trap_cx_ptr, reg a1 = phy addr of usr page table,
+/// finally, jump to new addr of __restore asm function
 pub fn trap_return() -> ! {
     set_user_trap_entry();
-    let trap_cx_ptr = TRAP_CONTEXT_BASE;
+    let trap_cx_ptr = TRAP_CONTEXT;
     let user_satp = current_user_token();
     unsafe extern "C" {
-        fn __alltraps();
-        fn __restore();
+        unsafe fn __alltraps();
+        unsafe fn __restore();
     }
     let restore_va = __restore as usize - __alltraps as usize + TRAMPOLINE;
-    // trace!("[kernel] trap_return: ..before return");
     unsafe {
         asm!(
             "fence.i",
@@ -123,7 +133,7 @@ pub fn trap_return() -> ! {
 #[unsafe(no_mangle)]
 pub fn trap_from_kernel() -> ! {
     use riscv::register::sepc;
-    trace!("stval = {:#x}, sepc = {:#x}", stval::read(), sepc::read());
+    println!("stval = {:#x}, sepc = {:#x}", stval::read(), sepc::read());
     panic!("a trap {:?} from kernel!", scause::read().cause());
 }
 

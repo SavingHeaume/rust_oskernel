@@ -19,7 +19,6 @@ bitflags! {
 
 #[derive(Copy, Clone)]
 #[repr(C)]
-
 pub struct PageTableEntry {
     pub bits: usize,
 }
@@ -30,36 +29,28 @@ impl PageTableEntry {
             bits: ppn.0 << 10 | flags.bits as usize,
         }
     }
-
     pub fn empty() -> Self {
         PageTableEntry { bits: 0 }
     }
-    /// 从页表项中获取物理页号
     pub fn ppn(&self) -> PhysPageNum {
         (self.bits >> 10 & ((1usize << 44) - 1)).into()
     }
-    /// 从页表项中获取flags
     pub fn flags(&self) -> PTEFlags {
         PTEFlags::from_bits(self.bits as u8).unwrap()
     }
-
     pub fn is_valid(&self) -> bool {
         (self.flags() & PTEFlags::V) != PTEFlags::empty()
     }
-   
     pub fn readable(&self) -> bool {
         (self.flags() & PTEFlags::R) != PTEFlags::empty()
     }
- 
     pub fn writable(&self) -> bool {
         (self.flags() & PTEFlags::W) != PTEFlags::empty()
     }
- 
     pub fn executable(&self) -> bool {
         (self.flags() & PTEFlags::X) != PTEFlags::empty()
     }
 }
-
 
 pub struct PageTable {
     root_ppn: PhysPageNum,
@@ -68,7 +59,6 @@ pub struct PageTable {
 
 
 impl PageTable {
-
     pub fn new() -> Self {
         let frame = frame_alloc().unwrap();
         PageTable {
@@ -154,13 +144,11 @@ impl PageTable {
             (aligned_pa_usize + offset).into()
         })
     }
-
     pub fn token(&self) -> usize {
         8usize << 60 | self.root_ppn.0
     }
 }
 
-/// Translate&Copy a ptr[u8] array with LENGTH len to a mutable u8 Vec through page table
 pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&'static mut [u8]> {
     let page_table = PageTable::from_token(token);
     let mut start = ptr as usize;
@@ -183,7 +171,7 @@ pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&
     v
 }
 
-/// Translate&Copy a ptr[u8] array end with `\0` to a `String` Vec through page table
+/// Load a string from other address spaces into kernel space without an end `\0`.
 pub fn translated_str(token: usize, ptr: *const u8) -> String {
     let page_table = PageTable::from_token(token);
     let mut string = String::new();
@@ -202,8 +190,6 @@ pub fn translated_str(token: usize, ptr: *const u8) -> String {
     string
 }
 
-#[allow(unused)]
-/// Translate a ptr[u8] array through page table and return a reference of T
 pub fn translated_ref<T>(token: usize, ptr: *const T) -> &'static T {
     let page_table = PageTable::from_token(token);
     page_table
@@ -211,7 +197,7 @@ pub fn translated_ref<T>(token: usize, ptr: *const T) -> &'static T {
         .unwrap()
         .get_ref()
 }
-/// Translate a ptr[u8] array through page table and return a mutable reference of T
+
 pub fn translated_refmut<T>(token: usize, ptr: *mut T) -> &'static mut T {
     let page_table = PageTable::from_token(token);
     let va = ptr as usize;
@@ -227,11 +213,9 @@ pub struct UserBuffer {
 }
 
 impl UserBuffer {
-
     pub fn new(buffers: Vec<&'static mut [u8]>) -> Self {
         Self { buffers }
     }
-
     pub fn len(&self) -> usize {
         let mut total: usize = 0;
         for b in self.buffers.iter() {
@@ -252,7 +236,6 @@ impl IntoIterator for UserBuffer {
         }
     }
 }
-
 
 pub struct UserBufferIterator {
     buffers: Vec<&'static mut [u8]>,

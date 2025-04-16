@@ -12,7 +12,6 @@ pub struct TaskContext {
 }
 
 impl TaskContext {
-
     pub fn zero_init() -> Self {
         Self {
             ra: 0,

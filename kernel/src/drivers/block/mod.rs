@@ -5,8 +5,7 @@ pub use virtio_blk::VirtIOBlock;
 use alloc::sync::Arc;
 use file_system::BlockDevice;
 use lazy_static::*;
-
-type BlockDeviceImpl = virtio_blk::VirtIOBlock;
+pub type BlockDeviceImpl = VirtIOBlock;
 
 lazy_static! {
     pub static ref BLOCK_DEVICE: Arc<dyn BlockDevice> = Arc::new(BlockDeviceImpl::new());

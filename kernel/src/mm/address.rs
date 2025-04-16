@@ -7,6 +7,7 @@ const VA_WIDTH_SV39: usize = 39;
 const PPN_WIDTH_SV39: usize = PA_WIDTH_SV39 - PAGE_SIZE_BITS;
 const VPN_WIDTH_SV39: usize = VA_WIDTH_SV39 - PAGE_SIZE_BITS;
 
+/// Definitions
 #[repr(C)]
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct PhysAddr(pub usize);
@@ -22,6 +23,8 @@ pub struct PhysPageNum(pub usize);
 #[repr(C)]
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct VirtPageNum(pub usize);
+
+/// Debugging
 
 impl Debug for VirtAddr {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -44,6 +47,9 @@ impl Debug for PhysPageNum {
     }
 }
 
+/// T: {PhysAddr, VirtAddr, PhysPageNum, VirtPageNum}
+/// T -> usize: T.0
+/// usize -> T: usize.into()
 
 impl From<usize> for PhysAddr {
     fn from(v: usize) -> Self {
@@ -94,7 +100,6 @@ impl VirtAddr {
     pub fn floor(&self) -> VirtPageNum {
         VirtPageNum(self.0 / PAGE_SIZE)
     }
-
     pub fn ceil(&self) -> VirtPageNum {
         if self.0 == 0 {
             VirtPageNum(0)
@@ -102,11 +107,9 @@ impl VirtAddr {
             VirtPageNum((self.0 - 1 + PAGE_SIZE) / PAGE_SIZE)
         }
     }
-
     pub fn page_offset(&self) -> usize {
         self.0 & (PAGE_SIZE - 1)
     }
-
     pub fn aligned(&self) -> bool {
         self.page_offset() == 0
     }
@@ -126,7 +129,6 @@ impl PhysAddr {
     pub fn floor(&self) -> PhysPageNum {
         PhysPageNum(self.0 / PAGE_SIZE)
     }
-
     pub fn ceil(&self) -> PhysPageNum {
         if self.0 == 0 {
             PhysPageNum(0)
@@ -134,11 +136,9 @@ impl PhysAddr {
             PhysPageNum((self.0 - 1 + PAGE_SIZE) / PAGE_SIZE)
         }
     }
-
     pub fn page_offset(&self) -> usize {
         self.0 & (PAGE_SIZE - 1)
     }
-    
     pub fn aligned(&self) -> bool {
         self.page_offset() == 0
     }
@@ -171,23 +171,19 @@ impl PhysAddr {
     pub fn get_ref<T>(&self) -> &'static T {
         unsafe { (self.0 as *const T).as_ref().unwrap() }
     }
- 
     pub fn get_mut<T>(&self) -> &'static mut T {
         unsafe { (self.0 as *mut T).as_mut().unwrap() }
     }
 }
 impl PhysPageNum {
-   
     pub fn get_pte_array(&self) -> &'static mut [PageTableEntry] {
         let pa: PhysAddr = (*self).into();
         unsafe { core::slice::from_raw_parts_mut(pa.0 as *mut PageTableEntry, 512) }
     }
-  
     pub fn get_bytes_array(&self) -> &'static mut [u8] {
         let pa: PhysAddr = (*self).into();
         unsafe { core::slice::from_raw_parts_mut(pa.0 as *mut u8, 4096) }
     }
-    
     pub fn get_mut<T>(&self) -> &'static mut T {
         let pa: PhysAddr = (*self).into();
         pa.get_mut()
@@ -195,7 +191,6 @@ impl PhysPageNum {
 }
 
 pub trait StepByOne {
-   
     fn step(&mut self);
 }
 impl StepByOne for VirtPageNum {
@@ -272,5 +267,4 @@ where
         }
     }
 }
-
 pub type VPNRange = SimpleRange<VirtPageNum>;

@@ -1,4 +1,10 @@
-use log::{Level, LevelFilter, Log, Metadata, Record};
+/*！
+
+本模块利用 log crate 为你提供了日志功能，使用方式见 main.rs.
+
+*/
+
+use log::{self, Level, LevelFilter, Log, Metadata, Record};
 
 struct SimpleLogger;
 
@@ -36,6 +42,6 @@ pub fn init() {
         Some("INFO") => LevelFilter::Info,
         Some("DEBUG") => LevelFilter::Debug,
         Some("TRACE") => LevelFilter::Trace,
-        _ => LevelFilter::Off,
+        _ => LevelFilter::Info,
     });
 }
