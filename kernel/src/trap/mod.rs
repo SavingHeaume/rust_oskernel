@@ -8,6 +8,7 @@ use crate::task::{
 };
 use crate::timer::set_next_trigger;
 use core::arch::{asm, global_asm};
+use log::*;
 use riscv::register::{
     mtvec::TrapMode,
     scause::{self, Exception, Interrupt, Trap},
@@ -47,12 +48,10 @@ pub fn trap_handler() -> ! {
     match scause.cause() {
         // 应用程序发起系统调用
         Trap::Exception(Exception::UserEnvCall) => {
-            // jump to next instruction anyway
+            // info!("trap due to system call");
             let mut cx = current_trap_cx();
             cx.sepc += 4;
-            // get system call return value
             let result = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]);
-            // cx is changed during sys_exec, so we have to call it again
             cx = current_trap_cx();
             cx.x[10] = result as usize;
         }
@@ -64,24 +63,19 @@ pub fn trap_handler() -> ! {
         | Trap::Exception(Exception::InstructionPageFault)
         | Trap::Exception(Exception::LoadFault)
         | Trap::Exception(Exception::LoadPageFault) => {
-            /*
-            println!(
-                "[kernel] {:?} in application, bad addr = {:#x}, bad instruction = {:#x}, kernel killed it.",
-                scause.cause(),
-                stval,
-                current_trap_cx().sepc,
-            );
-            */
+            info!("[trap] trap due to page fault");
             current_add_signal(SignalFlags::SIGSEGV);
         }
 
         // 处理非法指令错误
         Trap::Exception(Exception::IllegalInstruction) => {
+            info!("[trap] trap due to illegal instruction");
             current_add_signal(SignalFlags::SIGILL);
         }
 
         // 时间中断
         Trap::Interrupt(Interrupt::SupervisorTimer) => {
+            // info!("trap due to time interrupt");
             set_next_trigger();
             suspend_current_and_run_next();
         }
@@ -93,13 +87,10 @@ pub fn trap_handler() -> ! {
             );
         }
     }
-    // handle signals (handle the sent signal)
-    //println!("[K] trap_handler:: handle_signals");
     handle_signals();
 
-    // check error signals (if error then exit)
     if let Some((errno, msg)) = check_signals_error_of_current() {
-        println!("[kernel] {}", msg);
+        info!("[trap] {}", msg);
         exit_current_and_run_next(errno);
     }
     trap_return();
@@ -133,7 +124,11 @@ pub fn trap_return() -> ! {
 #[unsafe(no_mangle)]
 pub fn trap_from_kernel() -> ! {
     use riscv::register::sepc;
-    println!("stval = {:#x}, sepc = {:#x}", stval::read(), sepc::read());
+    error!(
+        "[trap] stval = {:#x}, sepc = {:#x}",
+        stval::read(),
+        sepc::read()
+    );
     panic!("a trap {:?} from kernel!", scause::read().cause());
 }
 

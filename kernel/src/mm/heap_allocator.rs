@@ -1,6 +1,7 @@
 use crate::config::KERNEL_HEAP_SIZE;
 use buddy_system_allocator::LockedHeap;
 use core::ptr::addr_of_mut;
+use log::*;
 
 #[global_allocator]
 static HEAP_ALLOCATOR: LockedHeap = LockedHeap::empty();
@@ -13,6 +14,7 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
 static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
 
 pub fn init_heap() {
+    info!("[mm] heap_allocator init");
     unsafe {
         HEAP_ALLOCATOR
             .lock()

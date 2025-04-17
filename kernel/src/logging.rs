@@ -19,8 +19,8 @@ impl Log for SimpleLogger {
         let color = match record.level() {
             Level::Error => 31, // Red
             Level::Warn => 93,  // BrightYellow
-            Level::Info => 34,  // Blue
-            Level::Debug => 32, // Green
+            Level::Info => 32,  // Green
+            Level::Debug => 34, // Blue
             Level::Trace => 90, // BrightBlack
         };
         println!(

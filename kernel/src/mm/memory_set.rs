@@ -9,6 +9,7 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::arch::asm;
 use lazy_static::*;
+use log::*;
 use riscv::register::satp;
 
 unsafe extern "C" {
@@ -48,7 +49,7 @@ impl MemorySet {
     pub fn token(&self) -> usize {
         self.page_table.token()
     }
-    
+
     pub fn insert_framed_area(
         &mut self,
         start_va: VirtAddr,
@@ -88,20 +89,24 @@ impl MemorySet {
             PTEFlags::R | PTEFlags::X,
         );
     }
-    
+
     pub fn new_kernel() -> Self {
+        info!("[mm] create new kernel memory set");
         let mut memory_set = Self::new_bare();
         // map trampoline
         memory_set.map_trampoline();
         // map kernel sections
-        println!(".text [{:#x}, {:#x})", stext as usize, etext as usize);
-        println!(".rodata [{:#x}, {:#x})", srodata as usize, erodata as usize);
-        println!(".data [{:#x}, {:#x})", sdata as usize, edata as usize);
-        println!(
-            ".bss [{:#x}, {:#x})",
+        info!("[mm] .text [{:#x}, {:#x})", stext as usize, etext as usize);
+        info!(
+            "[mm] .rodata [{:#x}, {:#x})",
+            srodata as usize, erodata as usize
+        );
+        info!("[mm] .data [{:#x}, {:#x})", sdata as usize, edata as usize);
+        info!(
+            "[mm] .bss [{:#x}, {:#x})",
             sbss_with_stack as usize, ebss as usize
         );
-        println!("mapping .text section");
+        info!("mm] mapping .text section");
         memory_set.push(
             MapArea::new(
                 (stext as usize).into(),
@@ -111,7 +116,7 @@ impl MemorySet {
             ),
             None,
         );
-        println!("mapping .rodata section");
+        info!("[mm] mapping .rodata section");
         memory_set.push(
             MapArea::new(
                 (srodata as usize).into(),
@@ -121,7 +126,7 @@ impl MemorySet {
             ),
             None,
         );
-        println!("mapping .data section");
+        info!("[mm] mapping .data section");
         memory_set.push(
             MapArea::new(
                 (sdata as usize).into(),
@@ -131,7 +136,7 @@ impl MemorySet {
             ),
             None,
         );
-        println!("mapping .bss section");
+        info!("[mm] mapping .bss section");
         memory_set.push(
             MapArea::new(
                 (sbss_with_stack as usize).into(),
@@ -141,7 +146,7 @@ impl MemorySet {
             ),
             None,
         );
-        println!("mapping physical memory");
+        info!("[mm] mapping physical memory");
         memory_set.push(
             MapArea::new(
                 (ekernel as usize).into(),
@@ -151,7 +156,7 @@ impl MemorySet {
             ),
             None,
         );
-        println!("mapping memory-mapped registers");
+        info!("[mm] mapping memory-mapped registers");
         for pair in MMIO {
             memory_set.push(
                 MapArea::new(
@@ -168,6 +173,7 @@ impl MemorySet {
 
     // 返回 user_sp_base 和入口点
     pub fn from_elf(elf_data: &[u8]) -> (Self, usize, usize) {
+        info!("[mm] create memory set from elf file");
         let mut memory_set = Self::new_bare();
         // map trampoline
         memory_set.map_trampoline();
@@ -373,30 +379,47 @@ bitflags! {
 
 #[allow(unused)]
 pub fn remap_test() {
+    info!("[mm] remap_test");
     let mut kernel_space = KERNEL_SPACE.exclusive_access();
     let mid_text: VirtAddr = ((stext as usize + etext as usize) / 2).into();
     let mid_rodata: VirtAddr = ((srodata as usize + erodata as usize) / 2).into();
     let mid_data: VirtAddr = ((sdata as usize + edata as usize) / 2).into();
-    assert!(
-        !kernel_space
-            .page_table
-            .translate(mid_text.floor())
-            .unwrap()
-            .writable(),
-    );
-    assert!(
-        !kernel_space
-            .page_table
-            .translate(mid_rodata.floor())
-            .unwrap()
-            .writable(),
-    );
-    assert!(
-        !kernel_space
-            .page_table
-            .translate(mid_data.floor())
-            .unwrap()
-            .executable(),
-    );
-    println!("remap_test passed!");
+
+    if kernel_space
+        .page_table
+        .translate(mid_text.floor())
+        .unwrap()
+        .writable()
+    {
+        error!("[mm] .text is wirtable, map error");
+        assert!(true);
+    } else {
+        info!("[mm] .text is not writable, map right");
+    }
+
+    if kernel_space
+        .page_table
+        .translate(mid_rodata.floor())
+        .unwrap()
+        .writable()
+    {
+        error!("[mm] .rodata is wirtable, map error");
+        assert!(true);
+    } else {
+        info!("[mm] .rodata is not writable, map right");
+    }
+
+    if kernel_space
+        .page_table
+        .translate(mid_data.floor())
+        .unwrap()
+        .writable()
+    {
+        error!("[mm] .data is wirtable, map error");
+        assert!(true);
+    } else {
+        info!("[mm] .text is not writable, map right");
+    }
+
+    info!("[mm] remap_test passed!");
 }

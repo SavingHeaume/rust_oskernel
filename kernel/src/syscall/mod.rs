@@ -24,31 +24,74 @@ use fs::*;
 use process::*;
 
 use crate::task::SignalAction;
+use log::*;
 
 pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
     match syscall_id {
-        SYSCALL_DUP => sys_dup(args[0]),
-        SYSCALL_OPEN => sys_open(args[0] as *const u8, args[1] as u32),
-        SYSCALL_CLOSE => sys_close(args[0]),
-        SYSCALL_PIPE => sys_pipe(args[0] as *mut usize),
+        SYSCALL_DUP => {
+            info!("syscall_dup");
+            sys_dup(args[0])
+        }
+        SYSCALL_OPEN => {
+            info!("syscall_open");
+            sys_open(args[0] as *const u8, args[1] as u32)
+        }
+        SYSCALL_CLOSE => {
+            info!("syscall_close");
+            sys_close(args[0])
+        }
+        SYSCALL_PIPE => {
+            info!("syscall_pipe");
+            sys_pipe(args[0] as *mut usize)
+        }
         SYSCALL_READ => sys_read(args[0], args[1] as *const u8, args[2]),
         SYSCALL_WRITE => sys_write(args[0], args[1] as *const u8, args[2]),
-        SYSCALL_EXIT => sys_exit(args[0] as i32),
+        SYSCALL_EXIT => {
+            info!("syscall_exit");
+            sys_exit(args[0] as i32)
+        }
         SYSCALL_YIELD => sys_yield(),
-        SYSCALL_KILL => sys_kill(args[0], args[1] as i32),
-        SYSCALL_SIGACTION => sys_sigaction(
-            args[0] as i32,
-            args[1] as *const SignalAction,
-            args[2] as *mut SignalAction,
-        ),
-        SYSCALL_SIGPROCMASK => sys_sigprocmask(args[0] as u32),
-        SYSCALL_SIGRETURN => sys_sigreturn(),
-        SYSCALL_GET_TIME => sys_get_time(),
-        SYSCALL_GETPID => sys_getpid(),
-        SYSCALL_FORK => sys_fork(),
-        SYSCALL_EXEC => sys_exec(args[0] as *const u8, args[1] as *const usize),
+        SYSCALL_KILL => {
+            info!("syscall_kill");
+            sys_kill(args[0], args[1] as i32)
+        }
+        SYSCALL_SIGACTION => {
+            info!("syscall_sigaction");
+            sys_sigaction(
+                args[0] as i32,
+                args[1] as *const SignalAction,
+                args[2] as *mut SignalAction,
+            )
+        }
+        SYSCALL_SIGPROCMASK => {
+            info!("syscall_sigprocmask");
+            sys_sigprocmask(args[0] as u32)
+        }
+        SYSCALL_SIGRETURN => {
+            info!("sys_sigreturn");
+            sys_sigreturn()
+        }
+        SYSCALL_GET_TIME => {
+            info!("syscall_gettime");
+            sys_get_time()
+        }
+        SYSCALL_GETPID => {
+            info!("syscall_gitpid");
+            sys_getpid()
+        }
+        SYSCALL_FORK => {
+            info!("syscall_fork");
+            sys_fork()
+        }
+        SYSCALL_EXEC => {
+            info!("syscall_exec");
+            sys_exec(args[0] as *const u8, args[1] as *const usize)
+        }
         SYSCALL_WAITPID => sys_waitpid(args[0] as isize, args[1] as *mut i32),
-        SYSCALL_GETDENTS => sys_getdents(args[0], args[1] as *const u8, args[2]),
+        SYSCALL_GETDENTS => {
+            info!("syscall_getdents");
+            sys_getdents(args[0], args[1] as *const u8, args[2])
+        }
         _ => panic!("Unsupported syscall_id: {}", syscall_id),
     }
 }

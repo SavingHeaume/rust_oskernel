@@ -4,6 +4,7 @@ use crate::sync::UPSafeCell;
 use alloc::vec::Vec;
 use core::fmt::{self, Debug, Formatter};
 use lazy_static::*;
+use log::*;
 
 pub struct FrameTracker {
     pub ppn: PhysPageNum,
@@ -86,6 +87,7 @@ lazy_static! {
 }
 
 pub fn init_frame_allocator() {
+    info!("[mm] frame_allocator init");
     unsafe extern "C" {
         safe fn ekernel();
     }
