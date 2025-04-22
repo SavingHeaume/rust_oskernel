@@ -1,6 +1,6 @@
 use super::{KernelStack, PidHandle, SignalFlags, pid_alloc};
 use super::{SignalActions, TaskContext};
-use crate::config::TRAP_CONTEXT;
+use crate::config::TRAP_CONTEXT_BASE;
 use crate::fs::{File, Stdin, Stdout};
 use crate::mm::{KERNEL_SPACE, MemorySet, PhysPageNum, VirtAddr, translated_refmut};
 use crate::sync::UPSafeCell;
@@ -11,41 +11,27 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::cell::RefMut;
 
-pub struct TaskControlBlock {
+pub struct ProcessControlBlock {
     // immutable
     pub pid: PidHandle,
-    pub kernel_stack: KernelStack,
     // mutable
-    inner: UPSafeCell<TaskControlBlockInner>,
+    inner: UPSafeCell<ProcessControlBlockInner>,
 }
 
-pub struct TaskControlBlockInner {
-    /// 放置陷阱上下文的页帧的物理页号
-    pub trap_cx_ppn: PhysPageNum,
-    /// 应用程序数据只能出现在应用程序地址空间小于 base_size 的区域
-    #[allow(unused)]
-    pub base_size: usize,
-    pub task_cx: TaskContext,
-    pub task_status: TaskStatus,
+pub struct ProcessControlBlockInner {
+    pub is_zombie: bool,
     pub memory_set: MemorySet,
-    pub parent: Option<Weak<TaskControlBlock>>,
-    pub children: Vec<Arc<TaskControlBlock>>,
+    pub parent: Option<Weak<ProcessControlBlock>>,
+    pub children: Vec<Arc<ProcessControlBlock>>,
     pub exit_code: i32,
     pub fd_table: Vec<Option<Arc<dyn File + Send + Sync>>>,
     pub signals: SignalFlags,
-    pub signal_mask: SignalFlags,
-    // the signal which is being handling
-    pub handling_sig: isize,
-    // Signal actions
-    pub signal_actions: SignalActions,
-    // if the task is killed
-    pub killed: bool,
-    // if the task is frozen by a signal
-    pub frozen: bool,
-    pub trap_ctx_backup: Option<TrapContext>,
+
+    pub tasks: Vec<Option<Arc<TaskControlBlock>>>,
+    pub task_res_allocator: RecycleAllocator,
 }
 
-impl TaskControlBlockInner {
+impl ProcessControlBlock {
     pub fn get_trap_cx(&self) -> &'static mut TrapContext {
         self.trap_cx_ppn.get_mut()
     }
@@ -163,7 +149,6 @@ impl TaskControlBlock {
         // 使 user_sp 对齐到 8B
         user_sp -= user_sp % core::mem::size_of::<usize>();
 
-        
         let mut inner = self.inner_exclusive_access();
         // 替代memory_set
         inner.memory_set = memory_set;
