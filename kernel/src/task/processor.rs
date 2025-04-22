@@ -51,7 +51,6 @@ pub fn run_tasks() {
     loop {
         let mut processor = PROCESSOR.exclusive_access();
         if let Some(task) = fetch_task() {
-            info!("[processor] run tak by idle");
             let idle_task_cx_ptr = processor.get_idle_task_cx_ptr();
             let mut task_inner = task.inner_exclusive_access();
             let next_task_cx_ptr = &task_inner.task_cx as *const TaskContext;
@@ -91,7 +90,6 @@ pub fn current_trap_cx() -> &'static mut TrapContext {
 // 当一个应用用尽了内核本轮分配给它的时间片或者它主动调用 yield 系统调用交出 CPU 使用权之后
 // 内核会调用 schedule 函数来切换到 idle 控制流并开启新一轮的任务调度。
 pub fn schedule(switched_task_cx_ptr: *mut TaskContext) {
-    info!("[processor] return tu idle");
     let mut processor = PROCESSOR.exclusive_access();
     let idle_task_cx_ptr = processor.get_idle_task_cx_ptr();
     drop(processor);

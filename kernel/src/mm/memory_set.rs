@@ -392,7 +392,6 @@ pub fn remap_test() {
         .writable()
     {
         error!("[mm] .text is wirtable, map error");
-        assert!(true);
     } else {
         info!("[mm] .text is not writable, map right");
     }
@@ -404,7 +403,6 @@ pub fn remap_test() {
         .writable()
     {
         error!("[mm] .rodata is wirtable, map error");
-        assert!(true);
     } else {
         info!("[mm] .rodata is not writable, map right");
     }
@@ -413,12 +411,11 @@ pub fn remap_test() {
         .page_table
         .translate(mid_data.floor())
         .unwrap()
-        .writable()
+        .executable()
     {
-        error!("[mm] .data is wirtable, map error");
-        assert!(true);
+        error!("[mm] .data is executable, map error");
     } else {
-        info!("[mm] .text is not writable, map right");
+        info!("[mm] .data is not executable, map error");
     }
 
     info!("[mm] remap_test passed!");

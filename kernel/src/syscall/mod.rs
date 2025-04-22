@@ -71,10 +71,7 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
             info!("sys_sigreturn");
             sys_sigreturn()
         }
-        SYSCALL_GET_TIME => {
-            info!("syscall_gettime");
-            sys_get_time()
-        }
+        SYSCALL_GET_TIME => sys_get_time(),
         SYSCALL_GETPID => {
             info!("syscall_gitpid");
             sys_getpid()
