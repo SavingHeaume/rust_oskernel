@@ -5,7 +5,6 @@ use crate::sync::UPSafeCell;
 use crate::trap::TrapContext;
 use alloc::sync::Arc;
 use lazy_static::*;
-use log::*;
 
 /// 处理器管理结构
 pub struct Processor {

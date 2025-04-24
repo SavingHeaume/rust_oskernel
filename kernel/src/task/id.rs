@@ -1,3 +1,4 @@
+use super::process::ProcessControlBlock;
 use crate::config::{KERNEL_STACK_SIZE, PAGE_SIZE, TRAMPOLINE, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
 use crate::mm::{KERNEL_SPACE, MapPermission, PhysPageNum, VirtAddr};
 use crate::sync::UPSafeCell;
@@ -5,9 +6,7 @@ use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
 use lazy_static::*;
 
-use super::task::ProcessControlBlock;
-
-struct RecycleAllocator {
+pub struct RecycleAllocator {
     current: usize,
     recycled: Vec<usize>,
 }
@@ -69,7 +68,7 @@ pub fn kernel_stack_position(app_id: usize) -> (usize, usize) {
 
 pub struct KernelStack(pub usize);
 
-pub fn fstack_alloc() -> KernelStack {
+pub fn kstack_alloc() -> KernelStack {
     let kstack_id = KSTACK_ALLOCATOR.exclusive_access().alloc();
     let (kernel_stack_bottom, kernel_stack_top) = kernel_stack_position(kstack_id);
     KERNEL_SPACE.exclusive_access().insert_framed_area(
@@ -204,7 +203,7 @@ impl TaskUserRes {
 
     pub fn trap_cx_ppn(&self) -> PhysPageNum {
         let process = self.process.upgrade().unwrap();
-        let process_inner = process.innner_exclusive_access();
+        let process_inner = process.inner_exclusive_access();
         let trap_cx_bottom_va: VirtAddr = trap_cx_bottom_from_tid(self.tid).into();
         process_inner
             .memory_set

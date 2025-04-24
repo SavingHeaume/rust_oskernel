@@ -2,6 +2,7 @@ mod action;
 mod context;
 mod id;
 mod manager;
+mod process;
 mod processor;
 mod signal;
 mod switch;
@@ -14,13 +15,13 @@ use alloc::sync::Arc;
 pub use context::TaskContext;
 use lazy_static::*;
 use manager::fetch_task;
-use manager::remove_from_pid2task;
+use process::ProcessControlBlock;
 use switch::__switch;
 use task::{TaskControlBlock, TaskStatus};
 
 pub use action::{SignalAction, SignalActions};
 pub use id::{KernelStack, PidHandle, pid_alloc};
-pub use manager::{add_task, pid2task};
+pub use manager::{add_task, pid2process};
 pub use processor::{
     current_task, current_trap_cx, current_user_token, run_tasks, schedule, take_current_task,
 };
@@ -78,10 +79,10 @@ pub fn exit_current_and_run_next(exit_code: i32) {
 }
 
 lazy_static! {
-    pub static ref INITPROC: Arc<TaskControlBlock> = Arc::new({
+    pub static ref INITPROC: Arc<ProcessControlBlock> = Arc::new({
         let inode = open_file("initproc", OpenFlags::RDONLY).unwrap();
         let v = inode.read_all();
-        TaskControlBlock::new(v.as_slice())
+        ProcessControlBlock::new(v.as_slice())
     });
 }
 
