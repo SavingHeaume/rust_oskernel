@@ -1,9 +1,11 @@
 use crate::fs::{OpenFlags, ROOT_INODE, make_pipe, open_file};
 use crate::mm::{UserBuffer, translated_byte_buffer, translated_refmut, translated_str};
-use crate::task::{current_task, current_user_token};
+use crate::task::{current_process, current_task, current_user_token};
 use alloc::sync::Arc;
 
-pub fn sys_getdents(fd: usize, buf: *const u8, len: usize) -> isize {
+use super::process;
+
+pub fn sys_getdents(_fd: usize, _buf: *const u8, _len: usize) -> isize {
     let vec = ROOT_INODE.ls();
     let max_width = vec.iter().map(|s| s.len()).max().unwrap_or(0);
 
@@ -18,8 +20,8 @@ pub fn sys_getdents(fd: usize, buf: *const u8, len: usize) -> isize {
 
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     let token = current_user_token();
-    let task = current_task().unwrap();
-    let inner = task.inner_exclusive_access();
+    let process = current_process();
+    let inner = process.inner_exclusive_access();
     if fd >= inner.fd_table.len() {
         return -1;
     }
@@ -38,8 +40,8 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
 
 pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
     let token = current_user_token();
-    let task = current_task().unwrap();
-    let inner = task.inner_exclusive_access();
+    let process = current_process();
+    let inner = process.inner_exclusive_access();
     if fd >= inner.fd_table.len() {
         return -1;
     }
@@ -56,11 +58,11 @@ pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
 }
 
 pub fn sys_open(path: *const u8, flags: u32) -> isize {
-    let task = current_task().unwrap();
+    let process = current_process();
     let token = current_user_token();
     let path = translated_str(token, path);
     if let Some(inode) = open_file(path.as_str(), OpenFlags::from_bits(flags).unwrap()) {
-        let mut inner = task.inner_exclusive_access();
+        let mut inner = process.inner_exclusive_access();
         let fd = inner.alloc_fd();
         inner.fd_table[fd] = Some(inode);
         fd as isize
@@ -70,8 +72,8 @@ pub fn sys_open(path: *const u8, flags: u32) -> isize {
 }
 
 pub fn sys_close(fd: usize) -> isize {
-    let task = current_task().unwrap();
-    let mut inner = task.inner_exclusive_access();
+    let process = current_process();
+    let mut inner = process.inner_exclusive_access();
     if fd >= inner.fd_table.len() {
         return -1;
     }
@@ -83,9 +85,9 @@ pub fn sys_close(fd: usize) -> isize {
 }
 
 pub fn sys_pipe(pipe: *mut usize) -> isize {
-    let task = current_task().unwrap();
+    let process = current_process();
     let token = current_user_token();
-    let mut inner = task.inner_exclusive_access();
+    let mut inner = process.inner_exclusive_access();
     let (pipe_read, pipe_write) = make_pipe();
     let read_fd = inner.alloc_fd();
     inner.fd_table[read_fd] = Some(pipe_read);
@@ -98,8 +100,8 @@ pub fn sys_pipe(pipe: *mut usize) -> isize {
 }
 
 pub fn sys_dup(fd: usize) -> isize {
-    let task = current_task().unwrap();
-    let mut inner = task.inner_exclusive_access();
+    let process = current_process();
+    let mut inner = process.inner_exclusive_access();
     if fd >= inner.fd_table.len() {
         return -1;
     }

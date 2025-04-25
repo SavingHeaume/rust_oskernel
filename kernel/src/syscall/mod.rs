@@ -7,23 +7,24 @@ const SYSCALL_WRITE: usize = 64;
 const SYSCALL_EXIT: usize = 93;
 const SYSCALL_YIELD: usize = 124;
 const SYSCALL_KILL: usize = 129;
-const SYSCALL_SIGACTION: usize = 134;
-const SYSCALL_SIGPROCMASK: usize = 135;
-const SYSCALL_SIGRETURN: usize = 139;
 const SYSCALL_GET_TIME: usize = 169;
 const SYSCALL_GETPID: usize = 172;
 const SYSCALL_FORK: usize = 220;
 const SYSCALL_EXEC: usize = 221;
 const SYSCALL_WAITPID: usize = 260;
+const SYSCALL_THREAD_CREATE: usize = 1000;
+const SYSCALL_GETTID: usize = 1001;
+const SYSCALL_WAITTID: usize = 1002;
 const SYSCALL_GETDENTS: usize = 61;
 
 mod fs;
 mod process;
+mod thread;
 
 use fs::*;
 use process::*;
+use thread::*;
 
-use crate::task::SignalAction;
 use log::*;
 
 pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
@@ -55,22 +56,7 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
             info!("syscall_kill");
             sys_kill(args[0], args[1] as i32)
         }
-        SYSCALL_SIGACTION => {
-            info!("syscall_sigaction");
-            sys_sigaction(
-                args[0] as i32,
-                args[1] as *const SignalAction,
-                args[2] as *mut SignalAction,
-            )
-        }
-        SYSCALL_SIGPROCMASK => {
-            info!("syscall_sigprocmask");
-            sys_sigprocmask(args[0] as u32)
-        }
-        SYSCALL_SIGRETURN => {
-            info!("sys_sigreturn");
-            sys_sigreturn()
-        }
+
         SYSCALL_GET_TIME => sys_get_time(),
         SYSCALL_GETPID => {
             info!("syscall_gitpid");
@@ -85,6 +71,14 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
             sys_exec(args[0] as *const u8, args[1] as *const usize)
         }
         SYSCALL_WAITPID => sys_waitpid(args[0] as isize, args[1] as *mut i32),
+        SYSCALL_THREAD_CREATE => {
+            info!("syscall_thread_create");
+            sys_thread_create(args[0], args[1])
+        }
+        SYSCALL_WAITTID => {
+            info!("syscall_waittid");
+            sys_waittid(args[0]) as isize
+        }
         SYSCALL_GETDENTS => {
             info!("syscall_getdents");
             sys_getdents(args[0], args[1] as *const u8, args[2])

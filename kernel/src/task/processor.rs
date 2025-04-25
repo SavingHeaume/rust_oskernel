@@ -1,4 +1,5 @@
 use super::__switch;
+use super::process::ProcessControlBlock;
 use super::{TaskContext, TaskControlBlock};
 use super::{TaskStatus, fetch_task};
 use crate::sync::UPSafeCell;
@@ -72,10 +73,13 @@ pub fn current_task() -> Option<Arc<TaskControlBlock>> {
     PROCESSOR.exclusive_access().current()
 }
 
+pub fn current_process() -> Arc<ProcessControlBlock> {
+    current_task().unwrap().process.upgrade().unwrap()
+}
+
 pub fn current_user_token() -> usize {
     let task = current_task().unwrap();
-    let token = task.inner_exclusive_access().get_user_token();
-    token
+    task.get_user_toker()
 }
 
 ///获取当前任务的trap上下文的可变引用
@@ -84,6 +88,20 @@ pub fn current_trap_cx() -> &'static mut TrapContext {
         .unwrap()
         .inner_exclusive_access()
         .get_trap_cx()
+}
+
+pub fn current_trap_cx_user_va() -> usize {
+    current_task()
+        .unwrap()
+        .inner_exclusive_access()
+        .res
+        .as_ref()
+        .unwrap()
+        .trap_cx_user_va()
+}
+
+pub fn current_kstack_top() -> usize {
+    current_task().unwrap().kstack.get_top()
 }
 
 // 当一个应用用尽了内核本轮分配给它的时间片或者它主动调用 yield 系统调用交出 CPU 使用权之后

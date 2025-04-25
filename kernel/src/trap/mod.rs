@@ -1,10 +1,11 @@
 mod context;
 
-use crate::config::{TRAMPOLINE, TRAP_CONTEXT};
+use crate::config::TRAMPOLINE;
 use crate::syscall::syscall;
 use crate::task::{
     SignalFlags, check_signals_error_of_current, current_add_signal, current_trap_cx,
-    current_user_token, exit_current_and_run_next, handle_signals, suspend_current_and_run_next,
+    current_trap_cx_user_va, current_user_token, exit_current_and_run_next,
+    suspend_current_and_run_next,
 };
 use crate::timer::set_next_trigger;
 use core::arch::{asm, global_asm};
@@ -87,7 +88,6 @@ pub fn trap_handler() -> ! {
             );
         }
     }
-    handle_signals();
 
     if let Some((errno, msg)) = check_signals_error_of_current() {
         info!("[trap] {}", msg);
@@ -102,7 +102,7 @@ pub fn trap_handler() -> ! {
 /// finally, jump to new addr of __restore asm function
 pub fn trap_return() -> ! {
     set_user_trap_entry();
-    let trap_cx_ptr = TRAP_CONTEXT;
+    let trap_cx_ptr = current_trap_cx_user_va();
     let user_satp = current_user_token();
     unsafe extern "C" {
         unsafe fn __alltraps();
