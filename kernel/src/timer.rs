@@ -22,6 +22,7 @@ pub fn set_next_trigger() {
     set_timer(get_time() + CLOCK_FREQ / TICKS_PER_SEC);
 }
 
+/// 线程的睡眠超时时间
 pub struct TimerCondVar {
     pub expire_ms: usize,
     pub task: Arc<TaskControlBlock>,
@@ -69,6 +70,8 @@ pub fn remove_timer(task: Arc<TaskControlBlock>) {
     timers.append(&mut temp);
 }
 
+/// 每次时钟中断的时候检查在上个时间片中是否有一些线程的睡眠超时了，
+/// 如果有的话就唤醒它们
 pub fn check_timer() {
     let current_ms = get_time_ms();
     let mut timers = TIMERS.exclusive_access();

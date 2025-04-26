@@ -1,11 +1,10 @@
-use super::TaskContext;
 use super::id::RecycleAllocator;
 use super::manager::{add_task, insert_into_pid2process};
 use super::task::TaskControlBlock;
-use super::{KernelStack, PidHandle, SignalFlags, pid_alloc};
-use crate::config::TRAP_CONTEXT_BASE;
+use super::{PidHandle, SignalFlags, pid_alloc};
 use crate::fs::{File, Stdin, Stdout};
-use crate::mm::{KERNEL_SPACE, MemorySet, PhysPageNum, VirtAddr, translated_refmut};
+use crate::mm::{KERNEL_SPACE, MemorySet, translated_refmut};
+use crate::sync::Mutex;
 use crate::sync::UPSafeCell;
 use crate::trap::{TrapContext, trap_handler};
 use alloc::string::String;
@@ -32,6 +31,8 @@ pub struct ProcessControlBlockInner {
 
     pub tasks: Vec<Option<Arc<TaskControlBlock>>>,
     pub task_res_allocator: RecycleAllocator,
+
+    pub mutex_list: Vec<Option<Arc<dyn Mutex>>>,
 }
 
 impl ProcessControlBlockInner {
@@ -96,6 +97,7 @@ impl ProcessControlBlock {
                     signals: SignalFlags::empty(),
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
+                    mutex_list: Vec::new(),
                 })
             },
         });
@@ -221,6 +223,7 @@ impl ProcessControlBlock {
                     signals: SignalFlags::empty(),
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
+                    mutex_list: Vec::new(),
                 })
             },
         });
@@ -258,11 +261,4 @@ impl ProcessControlBlock {
     pub fn getpid(&self) -> usize {
         self.pid.0
     }
-}
-
-#[derive(Copy, Clone, PartialEq)]
-pub enum TaskStatus {
-    Ready,
-    Running,
-    Zombie,
 }
