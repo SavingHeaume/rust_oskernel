@@ -73,3 +73,13 @@ pub fn sys_waittid(tid: usize) -> i32 {
         -2
     }
 }
+
+pub fn sys_gettid() -> isize {
+    current_task()
+        .unwrap()
+        .inner_exclusive_access()
+        .res
+        .as_ref()
+        .unwrap()
+        .tid as isize
+}

@@ -27,6 +27,16 @@ const SYSCALL_MUTEX_CREATE: usize = 1010;
 const SYSCALL_MUTEX_LOCK: usize = 1011;
 const SYSCALL_MUTEX_UNLOCK: usize = 1012;
 
+// semaphore
+const SYSCALL_SEMAPHORE_CREATE: usize = 1020;
+const SYSCALL_SEMAPHORE_UP: usize = 1021;
+const SYSCALL_SEMAPHORE_DOWN: usize = 1022;
+
+// condvar
+const SYSCALL_CONDVAR_CREATE: usize = 1030;
+const SYSCALL_CONDVAR_SIGNAL: usize = 1031;
+const SYSCALL_CONDVAR_WAIT: usize = 1032;
+
 const SYSCALL_GETDENTS: usize = 61;
 
 mod fs;
@@ -97,6 +107,10 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
             info!("syscall_waittid");
             sys_waittid(args[0]) as isize
         }
+        SYSCALL_GETTID => {
+            info!("sycall_gettid");
+            sys_gettid()
+        }
         SYSCALL_MUTEX_CREATE => {
             info!("syscall_mutex_create");
             sys_mutex_create(args[0] == 1)
@@ -108,6 +122,30 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
         SYSCALL_MUTEX_UNLOCK => {
             info!("syscall_mutex_unlock");
             sys_mutex_unlock(args[0])
+        }
+        SYSCALL_SEMAPHORE_CREATE => {
+            info!("syscall_semaphore_create");
+            sys_semaphore_create(args[0])
+        }
+        SYSCALL_SEMAPHORE_UP => {
+            info!("syscall_semaphore_up");
+            sys_semaphore_up(args[0])
+        }
+        SYSCALL_SEMAPHORE_DOWN => {
+            info!("syscall_semaphore_down");
+            sys_semaphore_down(args[0])
+        }
+        SYSCALL_CONDVAR_CREATE => {
+            info!("syscall_condvar_create");
+            sys_condvar_create()
+        }
+        SYSCALL_CONDVAR_SIGNAL => {
+            info!("syscall_condvar_signal");
+            sys_condvar_signal(args[0])
+        }
+        SYSCALL_CONDVAR_WAIT => {
+            info!("syscall_condvar_wait");
+            sys_condvar_wait(args[0], args[1])
         }
         SYSCALL_GETDENTS => {
             info!("syscall_getdents");

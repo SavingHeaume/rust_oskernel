@@ -4,8 +4,8 @@ use super::task::TaskControlBlock;
 use super::{PidHandle, SignalFlags, pid_alloc};
 use crate::fs::{File, Stdin, Stdout};
 use crate::mm::{KERNEL_SPACE, MemorySet, translated_refmut};
-use crate::sync::Mutex;
 use crate::sync::UPSafeCell;
+use crate::sync::{Condvar, Mutex, Semaphore};
 use crate::trap::{TrapContext, trap_handler};
 use alloc::string::String;
 use alloc::sync::{Arc, Weak};
@@ -33,6 +33,8 @@ pub struct ProcessControlBlockInner {
     pub task_res_allocator: RecycleAllocator,
 
     pub mutex_list: Vec<Option<Arc<dyn Mutex>>>,
+    pub semaphore_list: Vec<Option<Arc<Semaphore>>>,
+    pub condvar_list: Vec<Option<Arc<Condvar>>>,
 }
 
 impl ProcessControlBlockInner {
@@ -98,6 +100,8 @@ impl ProcessControlBlock {
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
                     mutex_list: Vec::new(),
+                    semaphore_list: Vec::new(),
+                    condvar_list: Vec::new(),
                 })
             },
         });
@@ -224,6 +228,8 @@ impl ProcessControlBlock {
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
                     mutex_list: Vec::new(),
+                    semaphore_list: Vec::new(),
+                    condvar_list: Vec::new(),
                 })
             },
         });
