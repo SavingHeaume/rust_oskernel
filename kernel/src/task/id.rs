@@ -30,7 +30,7 @@ impl RecycleAllocator {
         assert!(id < self.current);
         assert!(
             !self.recycled.iter().any(|i| *i == id),
-            "pid {} has been deallocated!",
+            "id {} has been deallocated!",
             id
         );
         self.recycled.push(id);
@@ -146,12 +146,12 @@ impl TaskUserRes {
         let mut process_inner = process.inner_exclusive_access();
         // 分配用户栈
         let ustack_bottom = ustack_bottom_from_tid(self.ustack_base, self.tid);
-        let ustack_top = ustack_bottom_from_tid(self.ustack_base, self.tid);
+        let ustack_top = ustack_bottom + USER_STACK_SIZE;
 
         process_inner.memory_set.insert_framed_area(
             ustack_bottom.into(),
             ustack_top.into(),
-            MapPermission::R | MapPermission::W,
+            MapPermission::R | MapPermission::W | MapPermission::U,
         );
 
         // 分配 trap上下文

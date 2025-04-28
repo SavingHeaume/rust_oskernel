@@ -38,9 +38,6 @@ pub struct ProcessControlBlockInner {
 }
 
 impl ProcessControlBlockInner {
-    pub fn get_user_token(&self) -> usize {
-        self.memory_set.token()
-    }
     pub fn alloc_fd(&mut self) -> usize {
         if let Some(fd) = (0..self.fd_table.len()).find(|fd| self.fd_table[*fd].is_none()) {
             fd
@@ -259,7 +256,7 @@ impl ProcessControlBlock {
         let trap_cx = task_inner.get_trap_cx();
         trap_cx.kernel_sp = task.kstack.get_top();
         drop(task_inner);
-
+        insert_into_pid2process(child.getpid(), Arc::clone(&child));
         add_task(task);
 
         child

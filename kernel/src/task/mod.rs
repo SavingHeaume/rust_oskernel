@@ -1,4 +1,3 @@
-mod action;
 mod context;
 mod id;
 mod manager;
@@ -21,14 +20,13 @@ use manager::{fetch_task, remove_from_pid2process, remove_task};
 use process::ProcessControlBlock;
 use switch::__switch;
 
-pub use action::SignalAction;
 pub use id::{KernelStack, PidHandle, pid_alloc};
 pub use manager::{add_task, pid2process, wakeup_task};
 pub use processor::{
-    current_process, current_task, current_trap_cx, current_trap_cx_user_va, current_user_token,
-    run_tasks, schedule, take_current_task,
+    current_kstack_top, current_process, current_task, current_trap_cx, current_trap_cx_user_va,
+    current_user_token, run_tasks, schedule, take_current_task,
 };
-pub use signal::{MAX_SIG, SignalFlags};
+pub use signal::SignalFlags;
 pub use task::{TaskControlBlock, TaskStatus};
 
 pub fn suspend_current_and_run_next() {
