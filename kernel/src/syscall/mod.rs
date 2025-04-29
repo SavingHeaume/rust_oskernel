@@ -103,10 +103,7 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
             info!("syscall_thread_create");
             sys_thread_create(args[0], args[1])
         }
-        SYSCALL_WAITTID => {
-            info!("syscall_waittid");
-            sys_waittid(args[0]) as isize
-        }
+        SYSCALL_WAITTID => sys_waittid(args[0]) as isize,
         SYSCALL_GETTID => {
             info!("sycall_gettid");
             sys_gettid()
