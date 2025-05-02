@@ -40,12 +40,15 @@ pub fn suspend_current_and_run_next() {
     schedule(task_cx_ptr);
 }
 
-pub fn block_current_and_run_next() {
+pub fn block_current_task() -> *mut TaskContext {
     let task = take_current_task().unwrap();
     let mut task_inner = task.inner_exclusive_access();
-    let task_cx_ptr = &mut task_inner.task_cx as *mut TaskContext;
     task_inner.task_status = TaskStatus::Blocked;
-    drop(task_inner);
+    &mut task_inner.task_cx as *mut TaskContext
+}
+
+pub fn block_current_and_run_next() {
+    let task_cx_ptr = block_current_task();
     schedule(task_cx_ptr);
 }
 
