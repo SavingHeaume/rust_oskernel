@@ -1,9 +1,7 @@
 use crate::fs::{OpenFlags, ROOT_INODE, make_pipe, open_file};
 use crate::mm::{UserBuffer, translated_byte_buffer, translated_refmut, translated_str};
-use crate::task::{current_process, current_task, current_user_token};
+use crate::task::{current_process, current_user_token};
 use alloc::sync::Arc;
-
-use super::process;
 
 pub fn sys_getdents(_fd: usize, _buf: *const u8, _len: usize) -> isize {
     let vec = ROOT_INODE.ls();

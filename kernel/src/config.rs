@@ -21,5 +21,14 @@ pub const MEMORY_END: usize = 0x8800_0000;
 
 pub const MMIO: &[(usize, usize)] = &[
     (0x0010_0000, 0x00_2000), // VIRT_TEST/RTC  in virt machine
-    (0x1000_1000, 0x00_1000), // Virtio Block in virt machine
+    (0x2000000, 0x10000),
+    (0xc000000, 0x210000), // VIRT_PLIC in virt machine
+    (0x10000000, 0x9000),  // VIRT_UART0 with GPU  in virt machine
 ];
+
+pub const VIRT_PLIC: usize = 0xC00_0000;
+pub const VIRT_UART: usize = 0x1000_0000;
+#[allow(unused)]
+pub const VIRTGPU_XRES: u32 = 1280;
+#[allow(unused)]
+pub const VIRTGPU_YRES: u32 = 800;
