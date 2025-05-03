@@ -25,6 +25,8 @@ mod timer;
 mod trap;
 
 use core::arch::global_asm;
+use lazy_static::lazy_static;
+use sync::UPIntrFreeCell;
 
 global_asm!(include_str!("entry.asm"));
 
@@ -37,6 +39,11 @@ fn clear_bss() {
         core::slice::from_raw_parts_mut(sbss as usize as *mut u8, ebss as usize - sbss as usize)
             .fill(0);
     }
+}
+
+lazy_static! {
+    pub static ref DEV_NON_BLOCKING_ACCESS: UPIntrFreeCell<bool> =
+        unsafe { UPIntrFreeCell::new(false) };
 }
 
 /// the rust entry-point of os
