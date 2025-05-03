@@ -1,23 +1,17 @@
 use super::BlockDevice;
 use crate::DEV_NON_BLOCKING_ACCESS;
 use crate::drivers::bus::virtio::VirtioHal;
-use crate::mm::FrameTracker;
-use crate::sync::{Condvar, UPIntrFreeCell, UPSafeCell};
+use crate::sync::{Condvar, UPIntrFreeCell};
 use crate::task::schedule;
 use alloc::collections::BTreeMap;
-use alloc::vec::Vec;
-use lazy_static::*;
 use virtio_drivers::{BlkResp, RespStatus, VirtIOBlk, VirtIOHeader};
 
 #[allow(unused)]
 const VIRTIO0: usize = 0x10001000;
 
 pub struct VirtIOBlock {
-    virtio_blk: UPIntrFreeCell<VirtIOBlock<'static, VirtioHal>>,
+    virtio_blk: UPIntrFreeCell<VirtIOBlk<'static, VirtioHal>>,
     condvars: BTreeMap<u16, Condvar>,
-}
-lazy_static! {
-    static ref QUEUE_FRAMES: UPSafeCell<Vec<FrameTracker>> = unsafe { UPSafeCell::new(Vec::new()) };
 }
 
 impl BlockDevice for VirtIOBlock {
@@ -64,7 +58,7 @@ impl BlockDevice for VirtIOBlock {
         }
     }
     fn handle_irq(&self) {
-        self.virtio_blk.exclusive_access(|blk| {
+        self.virtio_blk.exclusive_session(|blk| {
             while let Ok(token) = blk.pop_used() {
                 self.condvars.get(&token).unwrap().signal();
             }
