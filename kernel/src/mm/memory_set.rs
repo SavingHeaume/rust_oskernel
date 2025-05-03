@@ -298,6 +298,11 @@ impl MapArea {
                 ppn = frame.ppn;
                 self.data_frames.insert(vpn, frame);
             }
+            MapType::Linear(pn_offset) => {
+                // check for sv39
+                assert!(vpn.0 < (1usize << 27));
+                ppn = PhysPageNum((vpn.0 as isize + pn_offset) as usize);
+            }
         }
         let pte_flags = PTEFlags::from_bits(self.map_perm.bits).unwrap();
         page_table.map(vpn, ppn, pte_flags);
@@ -345,6 +350,7 @@ impl MapArea {
 pub enum MapType {
     Identical,
     Framed,
+    Linear(isize),
 }
 
 bitflags! {
