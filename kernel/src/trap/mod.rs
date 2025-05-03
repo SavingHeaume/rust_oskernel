@@ -13,7 +13,7 @@ use log::*;
 use riscv::register::{
     mtvec::TrapMode,
     scause::{self, Exception, Interrupt, Trap},
-    sie, stval, stvec,
+    sie, sscratch, sstatus, stval, stvec,
 };
 
 global_asm!(include_str!("trap.S"));
@@ -23,8 +23,14 @@ pub fn init() {
 }
 
 fn set_kernel_trap_entry() {
+    unsafe extern "C" {
+        unsafe fn __alltraps();
+        unsafe fn __alltraps_k();
+    }
+    let __alltraps_k_va = __alltraps_k as usize - __alltraps as usize + TRAMPOLINE;
     unsafe {
         stvec::write(trap_from_kernel as usize, TrapMode::Direct);
+        sscratch::write(trap_from_kernel as usize);
     }
 }
 
@@ -41,6 +47,18 @@ pub fn enable_timer_interrupt() {
     }
 }
 
+pub fn enable_supervisor_interrupt() {
+    unsafe {
+        sstatus::set_sie();
+    }
+}
+
+pub fn disable_supervisor_interrupt() {
+    unsafe {
+        sstatus::clear_sie();
+    }
+}
+
 #[unsafe(no_mangle)]
 pub fn trap_handler() -> ! {
     set_kernel_trap_entry();
@@ -52,6 +70,9 @@ pub fn trap_handler() -> ! {
             // info!("trap due to system call");
             let mut cx = current_trap_cx();
             cx.sepc += 4;
+
+            enable_supervisor_interrupt();
+
             let result = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]);
             cx = current_trap_cx();
             cx.x[10] = result as usize;
@@ -80,6 +101,11 @@ pub fn trap_handler() -> ! {
             set_next_trigger();
             check_timer();
             suspend_current_and_run_next();
+        }
+
+        // 内核中断
+        Trap::Interrupt(Interrupt::SupervisorExternal) => {
+            crate::config::irq_handler();
         }
         _ => {
             panic!(
@@ -123,14 +149,22 @@ pub fn trap_return() -> ! {
 }
 
 #[unsafe(no_mangle)]
-pub fn trap_from_kernel() -> ! {
-    use riscv::register::sepc;
-    error!(
-        "[trap] stval = {:#x}, sepc = {:#x}",
-        stval::read(),
-        sepc::read()
-    );
-    panic!("a trap {:?} from kernel!", scause::read().cause());
+pub fn trap_from_kernel(_trap_cx: &TrapContext) {
+    let scause = scause::read();
+    let stval = stval::read();
+
+    match scause.cause() {
+        Trap::Interrupt(Interrupt::SupervisorExternal) => {
+            crate::config::irq_handler();
+        }
+        _ => {
+            panic!(
+                "Unsupported trap form kernel: {:?}, stval = {:#x}!",
+                scause.cause(),
+                stval
+            );
+        }
+    }
 }
 
 pub use context::TrapContext;
