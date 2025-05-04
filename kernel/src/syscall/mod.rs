@@ -41,16 +41,22 @@ const SYSCALL_CONDVAR_WAIT: usize = 1032;
 const SYSCALL_FRAMEBUFFER: usize = 2000;
 const SYSCALL_FRAMEBUFFER_FLUSH: usize = 2001;
 
+//input
+const SYSCALL_EVENT_GET: usize = 3000;
+const SYSCALL_KEY_PRESSED: usize = 3001;
+
 const SYSCALL_GETDENTS: usize = 61;
 
 mod fs;
 mod gui;
+mod input;
 mod process;
 mod sync;
 mod thread;
 
 use fs::*;
 use gui::*;
+use input::*;
 use process::*;
 use sync::*;
 use thread::*;
@@ -158,6 +164,14 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
         SYSCALL_FRAMEBUFFER_FLUSH => {
             info!("syscall_framebuffer_fluse");
             sys_framebuffer_fluse()
+        }
+        SYSCALL_EVENT_GET => {
+            info!("syscall_event_get");
+            sys_event_get()
+        }
+        SYSCALL_KEY_PRESSED => {
+            info!("syscall_key_pressed");
+            sys_key_pressed()
         }
         SYSCALL_GETDENTS => {
             info!("syscall_getdents");
