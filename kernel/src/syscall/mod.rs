@@ -37,14 +37,20 @@ const SYSCALL_CONDVAR_CREATE: usize = 1030;
 const SYSCALL_CONDVAR_SIGNAL: usize = 1031;
 const SYSCALL_CONDVAR_WAIT: usize = 1032;
 
+//gpu
+const SYSCALL_FRAMEBUFFER: usize = 2000;
+const SYSCALL_FRAMEBUFFER_FLUSH: usize = 2001;
+
 const SYSCALL_GETDENTS: usize = 61;
 
 mod fs;
+mod gui;
 mod process;
 mod sync;
 mod thread;
 
 use fs::*;
+use gui::*;
 use process::*;
 use sync::*;
 use thread::*;
@@ -143,6 +149,15 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
         SYSCALL_CONDVAR_WAIT => {
             info!("syscall_condvar_wait");
             sys_condvar_wait(args[0], args[1])
+        }
+
+        SYSCALL_FRAMEBUFFER => {
+            info!("syscall_framebuffer");
+            sys_framebuffer()
+        }
+        SYSCALL_FRAMEBUFFER_FLUSH => {
+            info!("syscall_framebuffer_fluse");
+            sys_framebuffer_fluse()
         }
         SYSCALL_GETDENTS => {
             info!("syscall_getdents");

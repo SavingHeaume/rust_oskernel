@@ -15,6 +15,8 @@ file_system = {path = "../file_system"}
 log = "0.4"
 sbi-rt = { version = "0.0.2", features = ["legacy"] }
 volatile = "0.3"
+embedded-graphics = "0.7.1"
+tinybmp = "0.3.1"
 
 [profile.release]
 debug = true

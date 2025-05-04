@@ -74,7 +74,7 @@ impl MemorySet {
     }
 
     /// 将新的 MapArea 添加到此 MemorySet 中。
-    fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) {
+    pub fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) {
         map_area.map(&mut self.page_table);
         if let Some(data) = data {
             map_area.copy_data(&self.page_table, data);
