@@ -181,6 +181,7 @@ impl TaskUserRes {
             .remove_area_with_start_vpn(trap_cx_bottom_va.into());
     }
 
+    #[allow(unused)]
     pub fn alloc_tid(&mut self) {
         self.tid = self
             .process

@@ -10,11 +10,13 @@ mod task;
 
 use crate::fs::{OpenFlags, open_file};
 use crate::sbi::shutdown;
+use crate::timer::remove_timer;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 pub use context::TaskContext;
 use id::TaskUserRes;
 use lazy_static::*;
+use manager::remove_task;
 use manager::{fetch_task, remove_from_pid2process};
 use process::ProcessControlBlock;
 use switch::__switch;
@@ -101,6 +103,7 @@ pub fn exit_current_and_run_next(exit_code: i32) {
         let mut recycle_res = Vec::<TaskUserRes>::new();
         for task in process_inner.tasks.iter().filter(|t| t.is_some()) {
             let task = task.as_ref().unwrap();
+            remove_inactive_task(Arc::clone(&task));
             let mut task_inner = task.inner_exclusive_access();
             if let Some(res) = task_inner.res.take() {
                 recycle_res.push(res);
@@ -146,4 +149,9 @@ pub fn current_add_signal(signal: SignalFlags) {
     let process = current_process();
     let mut process_inner = process.inner_exclusive_access();
     process_inner.signals |= signal;
+}
+
+pub fn remove_inactive_task(task: Arc<TaskControlBlock>) {
+    remove_task(Arc::clone(&task));
+    remove_timer(Arc::clone(&task));
 }
