@@ -7,6 +7,7 @@ extern crate alloc;
 #[macro_use]
 extern crate bitflags;
 
+use drivers::{KEBOARD_DEVICE, MOUSE_DEVICE, gpu::GPU_DEVICE};
 use log::*;
 
 #[macro_use]
@@ -54,11 +55,23 @@ pub fn rust_main() -> ! {
     info!("[kernel] Hello, world!");
     mm::init();
     mm::remap_test();
+
+    info!("[kernel] gpu init");
+    let _gpe = GPU_DEVICE.clone();
+    info!("[kernel] keyboard init");
+    let _keyboard = KEBOARD_DEVICE.clone();
+    info!("[kernel] mouse init");
+    let _mouse = MOUSE_DEVICE.clone();
+
+    info!("[kernel] trap init");
     trap::init();
     trap::enable_timer_interrupt();
     timer::set_next_trigger();
-    // fs::list_apps();
+
+    config::device_init();
+
     task::add_initproc();
+    *DEV_NON_BLOCKING_ACCESS.exclusive_access() = true;
     task::run_tasks();
     panic!("Unreachable in rust_main!");
 }
