@@ -22,6 +22,7 @@ pub use file::*;
 use syscall::*;
 pub use task::*;
 pub use sync::*;
+pub use io::*;
 
 const USER_HEAP_SIZE: usize = 32768;
 
