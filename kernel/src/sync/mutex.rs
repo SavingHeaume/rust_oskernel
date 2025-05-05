@@ -1,9 +1,12 @@
 use alloc::collections::vec_deque::VecDeque;
 use alloc::sync::Arc;
 
-use crate::task::{block_current_and_run_next, current_task, suspend_current_and_run_next, wakeup_task, TaskControlBlock};
+use crate::task::{
+    TaskControlBlock, block_current_and_run_next, current_task, suspend_current_and_run_next,
+    wakeup_task,
+};
 
-use super::UPSafeCell;
+use super::UPIntrFreeCell;
 
 pub trait Mutex: Sync + Send {
     fn lock(&self);
@@ -11,13 +14,13 @@ pub trait Mutex: Sync + Send {
 }
 
 pub struct MutexSpin {
-    locked: UPSafeCell<bool>,
+    locked: UPIntrFreeCell<bool>,
 }
 
 impl MutexSpin {
     pub fn new() -> Self {
         Self {
-            locked: unsafe { UPSafeCell::new(false) },
+            locked: unsafe { UPIntrFreeCell::new(false) },
         }
     }
 }
@@ -43,7 +46,7 @@ impl Mutex for MutexSpin {
 }
 
 pub struct MutexBlocking {
-    inner: UPSafeCell<MutexBlockingInner>,
+    inner: UPIntrFreeCell<MutexBlockingInner>,
 }
 
 pub struct MutexBlockingInner {
@@ -55,7 +58,7 @@ impl MutexBlocking {
     pub fn new() -> Self {
         Self {
             inner: unsafe {
-                UPSafeCell::new(MutexBlockingInner {
+                UPIntrFreeCell::new(MutexBlockingInner {
                     locked: false,
                     wait_queue: VecDeque::new(),
                 })
@@ -85,4 +88,3 @@ impl Mutex for MutexBlocking {
         }
     }
 }
-

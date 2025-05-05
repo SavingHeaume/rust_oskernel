@@ -4,20 +4,19 @@ use super::task::TaskControlBlock;
 use super::{PidHandle, SignalFlags, pid_alloc};
 use crate::fs::{File, Stdin, Stdout};
 use crate::mm::{KERNEL_SPACE, MemorySet, translated_refmut};
-use crate::sync::UPSafeCell;
 use crate::sync::{Condvar, Mutex, Semaphore};
+use crate::sync::{UPIntrFreeCell, UPIntrRefMut};
 use crate::trap::{TrapContext, trap_handler};
 use alloc::string::String;
 use alloc::sync::{Arc, Weak};
 use alloc::vec;
 use alloc::vec::Vec;
-use core::cell::RefMut;
 
 pub struct ProcessControlBlock {
     // immutable
     pub pid: PidHandle,
     // mutable
-    inner: UPSafeCell<ProcessControlBlockInner>,
+    inner: UPIntrFreeCell<ProcessControlBlockInner>,
 }
 
 pub struct ProcessControlBlockInner {
@@ -65,7 +64,7 @@ impl ProcessControlBlockInner {
 }
 
 impl ProcessControlBlock {
-    pub fn inner_exclusive_access(&self) -> RefMut<'_, ProcessControlBlockInner> {
+    pub fn inner_exclusive_access(&self) -> UPIntrRefMut<'_, ProcessControlBlockInner> {
         self.inner.exclusive_access()
     }
     /// 创建进程并默认为这个进程创建一个主线程
@@ -81,7 +80,7 @@ impl ProcessControlBlock {
         let process = Arc::new(Self {
             pid: pid_handle,
             inner: unsafe {
-                UPSafeCell::new(ProcessControlBlockInner {
+                UPIntrFreeCell::new(ProcessControlBlockInner {
                     is_zombie: false,
                     memory_set,
                     parent: None,
@@ -214,7 +213,7 @@ impl ProcessControlBlock {
         let child = Arc::new(Self {
             pid: pid_handle,
             inner: unsafe {
-                UPSafeCell::new(ProcessControlBlockInner {
+                UPIntrFreeCell::new(ProcessControlBlockInner {
                     is_zombie: false,
                     memory_set,
                     parent: Some(Arc::downgrade(self)),

@@ -4,8 +4,6 @@ use crate::task::{block_current_task, current_task};
 use alloc::collections::vec_deque::VecDeque;
 use alloc::sync::Arc;
 
-use super::UPSafeCell;
-
 pub struct Condvar {
     pub inner: UPIntrFreeCell<CondvarInner>,
 }

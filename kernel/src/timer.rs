@@ -1,6 +1,6 @@
 use crate::config::CLOCK_FREQ;
 use crate::sbi::set_timer;
-use crate::sync::UPSafeCell;
+use crate::sync::UPIntrFreeCell;
 use crate::task::{TaskControlBlock, wakeup_task};
 use alloc::collections::binary_heap::BinaryHeap;
 use alloc::sync::Arc;
@@ -49,8 +49,8 @@ impl Ord for TimerCondVar {
 }
 
 lazy_static! {
-    static ref TIMERS: UPSafeCell<BinaryHeap<TimerCondVar>> =
-        unsafe { UPSafeCell::new(BinaryHeap::<TimerCondVar>::new()) };
+    static ref TIMERS: UPIntrFreeCell<BinaryHeap<TimerCondVar>> =
+        unsafe { UPIntrFreeCell::new(BinaryHeap::<TimerCondVar>::new()) };
 }
 
 pub fn add_timer(expire_ms: usize, task: Arc<TaskControlBlock>) {
