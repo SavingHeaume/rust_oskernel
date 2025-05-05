@@ -4,8 +4,12 @@
 
 #[macro_use]
 pub mod console;
+mod file;
+mod io;
 mod lang_items;
+mod sync;
 mod syscall;
+mod task;
 
 extern crate alloc;
 #[macro_use]
@@ -14,7 +18,10 @@ extern crate bitflags;
 use alloc::vec::Vec;
 use buddy_system_allocator::LockedHeap;
 use core::ptr::addr_of_mut;
+pub use file::*;
 use syscall::*;
+pub use task::*;
+pub use sync::*;
 
 const USER_HEAP_SIZE: usize = 32768;
 
@@ -64,150 +71,7 @@ fn main(_argc: usize, _argv: &[&str]) -> i32 {
     panic!("Cannot find main!");
 }
 
-bitflags! {
-    pub struct OpenFlags: u32 {
-        const RDONLY = 0;
-        const WRONLY = 1 << 0;
-        const RDWR = 1 << 1;
-        const CREATE = 1 << 9;
-        const TRUNC = 1 << 10;
-    }
-}
 
-bitflags! {
-    pub struct SignalFlags: i32 {
-        const SIGINT    = 1 << 2;
-        const SIGILL    = 1 << 4;
-        const SIGABRT   = 1 << 6;
-        const SIGFPE    = 1 << 8;
-        const SIGSEGV   = 1 << 11;
-    }
-}
-
-pub fn dup(fd: usize) -> isize {
-    sys_dup(fd)
-}
-pub fn open(path: &str, flags: OpenFlags) -> isize {
-    sys_open(path, flags.bits)
-}
-pub fn close(fd: usize) -> isize {
-    sys_close(fd)
-}
-pub fn pipe(pipe_fd: &mut [usize]) -> isize {
-    sys_pipe(pipe_fd)
-}
-pub fn read(fd: usize, buf: &mut [u8]) -> isize {
-    sys_read(fd, buf)
-}
-
-pub fn getdents(fd: usize, buf: &mut [u8]) -> isize {
-    sys_getdents(fd, buf)
-}
-
-pub fn write(fd: usize, buf: &[u8]) -> isize {
-    sys_write(fd, buf)
-}
-pub fn exit(exit_code: i32) -> ! {
-    sys_exit(exit_code);
-}
-pub fn yield_() -> isize {
-    sys_yield()
-}
-pub fn get_time() -> isize {
-    sys_get_time()
-}
-pub fn getpid() -> isize {
-    sys_getpid()
-}
-pub fn fork() -> isize {
-    sys_fork()
-}
-pub fn exec(path: &str, args: &[*const u8]) -> isize {
-    sys_exec(path, args)
-}
-pub fn wait(exit_code: &mut i32) -> isize {
-    loop {
-        match sys_waitpid(-1, exit_code as *mut _) {
-            -2 => {
-                yield_();
-            }
-            // -1 or a real pid
-            exit_pid => return exit_pid,
-        }
-    }
-}
-
-pub fn waitpid(pid: usize, exit_code: &mut i32) -> isize {
-    loop {
-        match sys_waitpid(pid as isize, exit_code as *mut _) {
-            -2 => {
-                yield_();
-            }
-            // -1 or a real pid
-            exit_pid => return exit_pid,
-        }
-    }
-}
-
-pub fn waitpid_nb(pid: usize, exit_code: &mut i32) -> isize {
-    sys_waitpid(pid as isize, exit_code as *mut _)
-}
-
-pub fn kill(pid: usize, signum: i32) -> isize {
-    sys_kill(pid, signum)
-}
-
-pub fn sleep(sleep_ms: usize) {
-    sys_sleep(sleep_ms);
-}
-
-pub fn thread_create(entry: usize, arg: usize) -> isize {
-    sys_thread_create(entry, arg)
-}
-pub fn gettid() -> isize {
-    sys_gettid()
-}
-pub fn waittid(tid: usize) -> isize {
-    loop {
-        match sys_waittid(tid) {
-            -2 => {
-                yield_();
-            }
-            exit_code => return exit_code,
-        }
-    }
-}
-
-pub fn mutex_create() -> isize {
-    sys_mutex_create(false)
-}
-pub fn mutex_blocking_create() -> isize {
-    sys_mutex_create(true)
-}
-pub fn mutex_lock(mutex_id: usize) {
-    sys_mutex_lock(mutex_id);
-}
-pub fn mutex_unlock(mutex_id: usize) {
-    sys_mutex_unlock(mutex_id);
-}
-pub fn semaphore_create(res_count: usize) -> isize {
-    sys_semaphore_create(res_count)
-}
-pub fn semaphore_up(sem_id: usize) {
-    sys_semaphore_up(sem_id);
-}
-pub fn semaphore_down(sem_id: usize) {
-    sys_semaphore_down(sem_id);
-}
-pub fn condvar_create() -> isize {
-    sys_condvar_create()
-}
-pub fn condvar_signal(condvar_id: usize) {
-    sys_condvar_signal(condvar_id);
-}
-pub fn condvar_wait(condvar_id: usize, mutex_id: usize) {
-    sys_condvar_wait(condvar_id, mutex_id);
-}
 
 #[macro_export]
 macro_rules! vstore {
