@@ -39,11 +39,14 @@ run_qemu: build_fs build_kernel
 	cd $(KERNEL_DIR) && \
 	qemu-system-riscv64 \
 		-machine virt \
-		-nographic \
 		-bios ../bootloader/rustsbi-qemu.bin \
+		-serial stdio \
 		-device loader,file=target/riscv64gc-unknown-none-elf/release/kernel.bin,addr=0x80200000 \
 		-drive file=$(USER_TARGET_PATH)/fs.img,if=none,format=raw,id=x0 \
-		-device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 \
+		-device virtio-blk-device,drive=x0 \
+		-device virtio-gpu-device \
+		-device virtio-keyboard-device \
+		-device virtio-mouse-device \
 
 clean:
 	cd $(USER_DIR) && cargo clean

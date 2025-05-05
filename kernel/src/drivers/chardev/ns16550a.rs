@@ -76,11 +76,11 @@ struct WriteWithoutDLAB {
     _padding1: ReadOnly<u16>,
 }
 
-pub struct NS1650aRaw {
+pub struct NS16550aRaw {
     base_addr: usize,
 }
 
-impl NS1650aRaw {
+impl NS16550aRaw {
     fn read_end(&mut self) -> &mut ReadWithoutDLAB {
         unsafe { &mut *(self.base_addr as *mut ReadWithoutDLAB) }
     }
@@ -127,20 +127,20 @@ impl NS1650aRaw {
     }
 }
 
-struct NS1650aInner {
-    ns16550a: NS1650aRaw,
+struct NS16550aInner {
+    ns16550a: NS16550aRaw,
     read_buffer: VecDeque<u8>,
 }
 
-pub struct NS1650a<const BASE_ADDR: usize> {
-    inner: UPIntrFreeCell<NS1650aInner>,
+pub struct NS16550a<const BASE_ADDR: usize> {
+    inner: UPIntrFreeCell<NS16550aInner>,
     condvar: Condvar,
 }
 
-impl<const BASE_ADDR: usize> NS1650a<BASE_ADDR> {
+impl<const BASE_ADDR: usize> NS16550a<BASE_ADDR> {
     pub fn new() -> Self {
-        let inner = NS1650aInner {
-            ns16550a: NS1650aRaw::new(BASE_ADDR),
+        let inner = NS16550aInner {
+            ns16550a: NS16550aRaw::new(BASE_ADDR),
             read_buffer: VecDeque::new(),
         };
 
@@ -156,7 +156,7 @@ impl<const BASE_ADDR: usize> NS1650a<BASE_ADDR> {
     }
 }
 
-impl<const BASE_ADDR: usize> CharDevice for NS1650a<BASE_ADDR> {
+impl<const BASE_ADDR: usize> CharDevice for NS16550a<BASE_ADDR> {
     fn init(&self) {
         let mut inner = self.inner.exclusive_access();
         inner.ns16550a.init();

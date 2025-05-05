@@ -29,7 +29,7 @@ pub trait InputDevice: Send + Sync + Any {
 }
 
 lazy_static! {
-    pub static ref KEBOARD_DEVICE: Arc<dyn InputDevice> =
+    pub static ref KEYBOARD_DEVICE: Arc<dyn InputDevice> =
         Arc::new(VirtIOInputWrapper::new(VIRTIO5));
     pub static ref MOUSE_DEVICE: Arc<dyn InputDevice> = Arc::new(VirtIOInputWrapper::new(VIRTIO6));
 }

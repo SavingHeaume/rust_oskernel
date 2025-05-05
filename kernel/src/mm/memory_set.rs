@@ -91,22 +91,22 @@ impl MemorySet {
     }
 
     pub fn new_kernel() -> Self {
-        info!("[mm] create new kernel memory set");
+        // info!("[mm] create new kernel memory set");
         let mut memory_set = Self::new_bare();
         // map trampoline
         memory_set.map_trampoline();
         // map kernel sections
-        info!("[mm] .text [{:#x}, {:#x})", stext as usize, etext as usize);
-        info!(
-            "[mm] .rodata [{:#x}, {:#x})",
-            srodata as usize, erodata as usize
-        );
-        info!("[mm] .data [{:#x}, {:#x})", sdata as usize, edata as usize);
-        info!(
-            "[mm] .bss [{:#x}, {:#x})",
-            sbss_with_stack as usize, ebss as usize
-        );
-        info!("mm] mapping .text section");
+        // info!("[mm] .text [{:#x}, {:#x})", stext as usize, etext as usize);
+        // info!(
+        //     "[mm] .rodata [{:#x}, {:#x})",
+        //     srodata as usize, erodata as usize
+        // );
+        // info!("[mm] .data [{:#x}, {:#x})", sdata as usize, edata as usize);
+        // info!(
+        //     "[mm] .bss [{:#x}, {:#x})",
+        //     sbss_with_stack as usize, ebss as usize
+        // );
+        // info!("mm] mapping .text section");
         memory_set.push(
             MapArea::new(
                 (stext as usize).into(),
@@ -116,7 +116,7 @@ impl MemorySet {
             ),
             None,
         );
-        info!("[mm] mapping .rodata section");
+        // info!("[mm] mapping .rodata section");
         memory_set.push(
             MapArea::new(
                 (srodata as usize).into(),
@@ -126,7 +126,7 @@ impl MemorySet {
             ),
             None,
         );
-        info!("[mm] mapping .data section");
+        // info!("[mm] mapping .data section");
         memory_set.push(
             MapArea::new(
                 (sdata as usize).into(),
@@ -136,7 +136,7 @@ impl MemorySet {
             ),
             None,
         );
-        info!("[mm] mapping .bss section");
+        // info!("[mm] mapping .bss section");
         memory_set.push(
             MapArea::new(
                 (sbss_with_stack as usize).into(),
@@ -146,7 +146,7 @@ impl MemorySet {
             ),
             None,
         );
-        info!("[mm] mapping physical memory");
+        // info!("[mm] mapping physical memory");
         memory_set.push(
             MapArea::new(
                 (ekernel as usize).into(),
@@ -156,7 +156,7 @@ impl MemorySet {
             ),
             None,
         );
-        info!("[mm] mapping memory-mapped registers");
+        // info!("[mm] mapping memory-mapped registers");
         for pair in MMIO {
             memory_set.push(
                 MapArea::new(

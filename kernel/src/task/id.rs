@@ -43,7 +43,6 @@ lazy_static! {
     static ref KSTACK_ALLOCATOR: UPIntrFreeCell<RecycleAllocator> =
         unsafe { UPIntrFreeCell::new(RecycleAllocator::new()) };
 }
-pub const IDLE_PID: usize = 0;
 
 /// PID的抽象结构
 pub struct PidHandle(pub usize);

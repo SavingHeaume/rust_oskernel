@@ -3,7 +3,7 @@ mod context;
 use crate::config::TRAMPOLINE;
 use crate::syscall::syscall;
 use crate::task::{
-    SignalFlags, check_signals_error_of_current, current_add_signal, current_trap_cx,
+    SignalFlags, check_signals_of_current, current_add_signal, current_trap_cx,
     current_trap_cx_user_va, current_user_token, exit_current_and_run_next,
     suspend_current_and_run_next,
 };
@@ -29,7 +29,7 @@ fn set_kernel_trap_entry() {
     }
     let __alltraps_k_va = __alltraps_k as usize - __alltraps as usize + TRAMPOLINE;
     unsafe {
-        stvec::write(trap_from_kernel as usize, TrapMode::Direct);
+        stvec::write(__alltraps_k_va, TrapMode::Direct);
         sscratch::write(trap_from_kernel as usize);
     }
 }
@@ -116,7 +116,7 @@ pub fn trap_handler() -> ! {
         }
     }
 
-    if let Some((errno, msg)) = check_signals_error_of_current() {
+    if let Some((errno, msg)) = check_signals_of_current() {
         info!("[trap] {}", msg);
         exit_current_and_run_next(errno);
     }
@@ -128,8 +128,9 @@ pub fn trap_handler() -> ! {
 /// set the reg a0 = trap_cx_ptr, reg a1 = phy addr of usr page table,
 /// finally, jump to new addr of __restore asm function
 pub fn trap_return() -> ! {
+    disable_supervisor_interrupt();
     set_user_trap_entry();
-    let trap_cx_ptr = current_trap_cx_user_va();
+    let trap_cx_user_va = current_trap_cx_user_va();
     let user_satp = current_user_token();
     unsafe extern "C" {
         unsafe fn __alltraps();
@@ -141,7 +142,7 @@ pub fn trap_return() -> ! {
             "fence.i",
             "jr {restore_va}",
             restore_va = in(reg) restore_va,
-            in("a0") trap_cx_ptr,
+            in("a0") trap_cx_user_va,
             in("a1") user_satp,
             options(noreturn)
         );
@@ -157,9 +158,14 @@ pub fn trap_from_kernel(_trap_cx: &TrapContext) {
         Trap::Interrupt(Interrupt::SupervisorExternal) => {
             crate::config::irq_handler();
         }
+        Trap::Interrupt(Interrupt::SupervisorTimer) => {
+            set_next_trigger();
+            check_timer();
+            // do not schedule now
+        }
         _ => {
             panic!(
-                "Unsupported trap form kernel: {:?}, stval = {:#x}!",
+                "Unsupported trap from kernel: {:?}, stval = {:#x}!",
                 scause.cause(),
                 stval
             );

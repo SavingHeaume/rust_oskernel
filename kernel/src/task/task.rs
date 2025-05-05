@@ -11,7 +11,7 @@ use alloc::sync::{Arc, Weak};
 pub struct TaskControlBlock {
     pub process: Weak<ProcessControlBlock>,
     pub kstack: KernelStack,
-    inner: UPIntrFreeCell<TaskControlBlockInner>,
+    pub inner: UPIntrFreeCell<TaskControlBlockInner>,
 }
 
 pub struct TaskControlBlockInner {
@@ -51,7 +51,7 @@ impl TaskControlBlock {
         self.inner.exclusive_access()
     }
 
-    pub fn get_user_toker(&self) -> usize {
+    pub fn get_user_token(&self) -> usize {
         let process = self.process.upgrade().unwrap();
         let inner = process.inner_exclusive_access();
         inner.memory_set.token()

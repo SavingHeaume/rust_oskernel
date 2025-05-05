@@ -7,7 +7,7 @@ extern crate alloc;
 #[macro_use]
 extern crate bitflags;
 
-use drivers::{KEBOARD_DEVICE, MOUSE_DEVICE, gpu::GPU_DEVICE};
+use drivers::{KEYBOARD_DEVICE, MOUSE_DEVICE, gpu::GPU_DEVICE};
 use log::*;
 
 #[macro_use]
@@ -25,6 +25,7 @@ mod task;
 mod timer;
 mod trap;
 
+use crate::drivers::chardev::{CharDevice, UART};
 use core::arch::global_asm;
 use lazy_static::lazy_static;
 use sync::UPIntrFreeCell;
@@ -52,14 +53,15 @@ lazy_static! {
 pub fn rust_main() -> ! {
     clear_bss();
     logging::init();
-    info!("[kernel] Hello, world!");
     mm::init();
-    mm::remap_test();
+    UART.init();
+    info!("[kernel] Hello, world!");
+    // mm::remap_test();
 
     info!("[kernel] gpu init");
     let _gpe = GPU_DEVICE.clone();
     info!("[kernel] keyboard init");
-    let _keyboard = KEBOARD_DEVICE.clone();
+    let _keyboard = KEYBOARD_DEVICE.clone();
     info!("[kernel] mouse init");
     let _mouse = MOUSE_DEVICE.clone();
 

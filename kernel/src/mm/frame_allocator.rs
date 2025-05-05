@@ -98,7 +98,7 @@ lazy_static! {
 }
 
 pub fn init_frame_allocator() {
-    info!("[mm] frame_allocator init");
+    // info!("[mm] frame_allocator init");
     unsafe extern "C" {
         safe fn ekernel();
     }

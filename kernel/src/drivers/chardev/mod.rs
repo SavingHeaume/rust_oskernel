@@ -11,7 +11,7 @@ pub trait CharDevice {
     fn handle_irq(&self);
 }
 
-type CharDeviceImpl = ns16550a::NS1650a<VIRT_UART>;
+type CharDeviceImpl = ns16550a::NS16550a<VIRT_UART>;
 
 lazy_static! {
     pub static ref UART: Arc<CharDeviceImpl> = Arc::new(CharDeviceImpl::new());

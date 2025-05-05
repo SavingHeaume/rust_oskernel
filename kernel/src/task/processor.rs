@@ -54,10 +54,11 @@ pub fn run_tasks() {
         let mut processor = PROCESSOR.exclusive_access();
         if let Some(task) = fetch_task() {
             let idle_task_cx_ptr = processor.get_idle_task_cx_ptr();
-            let mut task_inner = task.inner_exclusive_access();
-            let next_task_cx_ptr = &task_inner.task_cx as *const TaskContext;
-            task_inner.task_status = TaskStatus::Running;
-            drop(task_inner);
+            // access coming task TCB exclusively
+            let next_task_cx_ptr = task.inner.exclusive_session(|task_inner| {
+                task_inner.task_status = TaskStatus::Running;
+                &task_inner.task_cx as *const TaskContext
+            });
             processor.current = Some(task);
             drop(processor);
             unsafe {
@@ -83,7 +84,7 @@ pub fn current_process() -> Arc<ProcessControlBlock> {
 
 pub fn current_user_token() -> usize {
     let task = current_task().unwrap();
-    task.get_user_toker()
+    task.get_user_token()
 }
 
 ///获取当前任务的trap上下文的可变引用
@@ -111,9 +112,8 @@ pub fn current_kstack_top() -> usize {
 // 当一个应用用尽了内核本轮分配给它的时间片或者它主动调用 yield 系统调用交出 CPU 使用权之后
 // 内核会调用 schedule 函数来切换到 idle 控制流并开启新一轮的任务调度。
 pub fn schedule(switched_task_cx_ptr: *mut TaskContext) {
-    let mut processor = PROCESSOR.exclusive_access();
-    let idle_task_cx_ptr = processor.get_idle_task_cx_ptr();
-    drop(processor);
+    let idle_task_cx_ptr =
+        PROCESSOR.exclusive_session(|processor| processor.get_idle_task_cx_ptr());
     unsafe {
         __switch(switched_task_cx_ptr, idle_task_cx_ptr);
     }

@@ -1,7 +1,7 @@
-use crate::drivers::{KEBOARD_DEVICE, MOUSE_DEVICE};
+use crate::drivers::{KEYBOARD_DEVICE, MOUSE_DEVICE};
 
 pub fn sys_event_get() -> isize {
-    let kb = KEBOARD_DEVICE.clone();
+    let kb = KEYBOARD_DEVICE.clone();
     let mouse = MOUSE_DEVICE.clone();
 
     if !kb.is_empty() {

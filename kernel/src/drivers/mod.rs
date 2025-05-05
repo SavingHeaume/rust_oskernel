@@ -6,4 +6,4 @@ pub mod input;
 pub mod plic;
 
 pub use block::BLOCK_DEVICE;
-pub use input::{KEBOARD_DEVICE, MOUSE_DEVICE};
+pub use input::{KEYBOARD_DEVICE, MOUSE_DEVICE};

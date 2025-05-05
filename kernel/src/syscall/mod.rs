@@ -94,7 +94,7 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
         SYSCALL_YIELD => sys_yield(),
         SYSCALL_KILL => {
             info!("syscall_kill");
-            sys_kill(args[0], args[1] as i32)
+            sys_kill(args[0], args[1] as u32)
         }
 
         SYSCALL_GET_TIME => sys_get_time(),

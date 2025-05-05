@@ -35,7 +35,7 @@ pub const VIRTGPU_YRES: u32 = 800;
 
 use crate::drivers::block::BLOCK_DEVICE;
 use crate::drivers::chardev::{CharDevice, UART};
-use crate::drivers::input::{KEBOARD_DEVICE, MOUSE_DEVICE};
+use crate::drivers::input::{KEYBOARD_DEVICE, MOUSE_DEVICE};
 use crate::drivers::plic::{IntrTargetPriority, PLIC};
 
 pub fn device_init() {
@@ -63,7 +63,7 @@ pub fn irq_handler() {
     let intr_src_id = plic.claim(0, IntrTargetPriority::Supervisor);
 
     match intr_src_id {
-        5 => KEBOARD_DEVICE.handle_irq(),
+        5 => KEYBOARD_DEVICE.handle_irq(),
         6 => MOUSE_DEVICE.handle_irq(),
         8 => BLOCK_DEVICE.handle_irq(),
         10 => UART.handle_irq(),
