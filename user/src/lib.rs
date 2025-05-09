@@ -10,6 +10,7 @@ mod lang_items;
 mod sync;
 mod syscall;
 mod task;
+mod window;
 
 extern crate alloc;
 #[macro_use]
@@ -19,10 +20,11 @@ use alloc::vec::Vec;
 use buddy_system_allocator::LockedHeap;
 use core::ptr::addr_of_mut;
 pub use file::*;
+pub use io::*;
+pub use sync::*;
 use syscall::*;
 pub use task::*;
-pub use sync::*;
-pub use io::*;
+pub use window::*;
 
 const USER_HEAP_SIZE: usize = 32768;
 
@@ -71,8 +73,6 @@ pub extern "C" fn _start(argc: usize, argv: usize) -> ! {
 fn main(_argc: usize, _argv: &[&str]) -> i32 {
     panic!("Cannot find main!");
 }
-
-
 
 #[macro_export]
 macro_rules! vstore {
