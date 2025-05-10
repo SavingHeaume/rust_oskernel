@@ -4,7 +4,8 @@ use crate::task::{current_process, current_user_token};
 use alloc::sync::Arc;
 
 pub fn sys_getdents(_fd: usize, _buf: *const u8, _len: usize) -> isize {
-    let vec = ROOT_INODE.ls();
+    let mut vec = ROOT_INODE.ls();
+    vec.sort();
     let max_width = vec.iter().map(|s| s.len()).max().unwrap_or(0);
 
     for chunk in vec.chunks(5) {
