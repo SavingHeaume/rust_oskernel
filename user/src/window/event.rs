@@ -3,7 +3,7 @@ use virtio_input_decoder::{DecodeType, Key, KeyType, Mouse};
 
 #[derive(Debug, Clone, Copy)]
 pub enum WindowEvent {
-    // 鼠标事件 (坐标已转换为屏幕绝对坐标)
+    // 鼠标事件
     MouseMove { x: i32, y: i32 },
     MousePress { x: i32, y: i32, button: Key },
     MouseRelease { button: Key },
@@ -20,8 +20,24 @@ pub enum WindowEvent {
 pub fn translate_event(input: InputEvent) -> Option<WindowEvent> {
     match input.decode() {
         Some(DecodeType::Key(key, key_type)) => match key_type {
-            KeyType::Press => Some(WindowEvent::KeyPress(key)),
-            KeyType::Release => Some(WindowEvent::KeyRelease(key)),
+            KeyType::Press => {
+                if key == Key::MouseLeft || key == Key::MouseRight {
+                    Some(WindowEvent::MousePress {
+                        x: 0,
+                        y: 0,
+                        button: key,
+                    })
+                } else {
+                    Some(WindowEvent::KeyPress(key))
+                }
+            }
+            KeyType::Release => {
+                if key == Key::MouseLeft || key == Key::MouseRight {
+                    Some(WindowEvent::MouseRelease { button: key })
+                } else {
+                    Some(WindowEvent::KeyRelease(key))
+                }
+            }
         },
         Some(DecodeType::Mouse(mouse)) => {
             match mouse {
