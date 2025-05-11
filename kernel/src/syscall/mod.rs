@@ -84,7 +84,7 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
         SYSCALL_READ => sys_read(args[0], args[1] as *const u8, args[2]),
         SYSCALL_WRITE => sys_write(args[0], args[1] as *const u8, args[2]),
         SYSCALL_SLEEP => {
-            info!("syscall_sleep");
+            // info!("syscall_sleep");
             sys_sleep(args[0])
         }
         SYSCALL_EXIT => {
@@ -158,15 +158,12 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
         }
 
         SYSCALL_FRAMEBUFFER => {
-            info!("syscall_framebuffer");
             sys_framebuffer()
         }
         SYSCALL_FRAMEBUFFER_FLUSH => {
-            info!("syscall_framebuffer_fluse");
             sys_framebuffer_fluse()
         }
         SYSCALL_EVENT_GET => {
-            info!("syscall_event_get");
             sys_event_get()
         }
         SYSCALL_KEY_PRESSED => {
