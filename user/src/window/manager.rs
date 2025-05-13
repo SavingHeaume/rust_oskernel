@@ -14,6 +14,7 @@ use virtio_input_decoder::Key;
 pub struct WindowManager {
     windows: Vec<Window>,
     next_id: usize,
+    #[allow(unused)]
     screen_size: Size,
     drag_state: Option<DragState>,
     resize_state: Option<ResizeState>,
@@ -263,6 +264,7 @@ impl WindowManager {
     }
 
     /// 查找当前拖拽的窗口（实现示例）
+    #[allow(unused)]
     fn get_dragged_window_mut(&mut self) -> Option<&mut Window> {
         self.drag_state
             .as_ref()
@@ -316,6 +318,6 @@ impl WindowManager {
     }
 
     pub fn get_windows_mut(&mut self) -> &mut Vec<Window> {
-    &mut self.windows
-}
+        &mut self.windows
+    }
 }

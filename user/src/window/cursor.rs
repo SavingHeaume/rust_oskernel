@@ -73,10 +73,12 @@ impl MouseState {
     }
 
     // 添加获取当前鼠标状态的辅助方法
+    #[allow(unused)]
     pub fn get_position(&self) -> (i32, i32) {
         (self.last_x, self.last_y)
     }
 
+    #[allow(unused)]
     pub fn is_button_pressed(&self, button: u8) -> bool {
         (self.buttons & (1 << button)) != 0
     }

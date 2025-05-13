@@ -33,12 +33,6 @@ pub trait AppInterface {
     }
 }
 
-/// 应用程序基本信息
-pub struct AppInfo {
-    pub name: &'static str,
-    pub icon_name: &'static str,
-}
-
 // 全局应用程序注册表
 pub struct AppRegistry;
 

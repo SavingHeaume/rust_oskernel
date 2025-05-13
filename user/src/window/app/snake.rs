@@ -296,6 +296,7 @@ impl<const MAX_SIZE: usize, T: PixelColor> SnakeGame<MAX_SIZE, T> {
         self.game_over
     }
 
+    #[allow(unused)]
     pub fn get_score(&self) -> u32 {
         self.score
     }
@@ -318,6 +319,7 @@ impl<const MAX_SIZE: usize, T: PixelColor> SnakeGame<MAX_SIZE, T> {
 pub struct SnakeApp {
     game: Option<SnakeGame<20, Rgb888>>,
     size: Size,
+    #[allow(unused)]
     last_update: u64,
 }
 
