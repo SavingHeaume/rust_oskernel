@@ -1,6 +1,9 @@
+use super::WindowEvent;
+use super::app::AppInterface;
 use super::buffer::EmbeddedGraphicsBuffer;
 use super::style::WindowStyle;
 use crate::io::{VIRTGPU_XRES, VIRTGPU_YRES};
+use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use core::convert::Infallible;
 use embedded_graphics::mono_font::{MonoTextStyle, ascii::FONT_6X10};
@@ -10,7 +13,6 @@ use embedded_graphics::primitives::PrimitiveStyle;
 use embedded_graphics::primitives::Rectangle;
 use embedded_graphics::text::Text;
 
-#[derive(Clone)]
 pub struct Window {
     pub id: usize,
     pub bounds: Rectangle, // 窗口位置和大小 (逻辑坐标)
@@ -23,6 +25,9 @@ pub struct Window {
 
     pub content_buffer: Option<EmbeddedGraphicsBuffer>,
     pub content_offset: Point,
+
+    pub app: Option<Box<dyn AppInterface>>,
+    pub app_size: Size,
 }
 
 impl Window {
@@ -45,6 +50,9 @@ impl Window {
 
             content_buffer: None,
             content_offset: Point::zero(),
+
+            app: None,
+            app_size: Size::new(0, 0),
         }
     }
 
@@ -55,17 +63,14 @@ impl Window {
     {
         if self.is_dirty {
             self.redraw_decorations().unwrap();
-            self.is_dirty = false;
         }
-
         self.buffer.blit_to(target, self.bounds.top_left)?;
 
-        if let Some(content) = &self.content_buffer {
-            let content_pos = Point::new(
-                self.bounds.top_left.x + self.content_offset.x,
-                self.bounds.top_left.y + self.content_offset.y,
-            );
-            content.blit_to(target, content_pos);
+        let top_left = self.content_area().top_left;
+
+        if let (Some(app), Some(buffer)) = (&mut self.app, &mut self.content_buffer) {
+            app.render(buffer).ok();
+            buffer.blit_to(target, top_left)?;
         }
 
         Ok(())
@@ -224,5 +229,33 @@ impl Window {
 
         // 标记为需要重绘
         self.is_dirty = true;
+    }
+
+    pub fn attach_app(&mut self, mut app: Box<dyn AppInterface>) {
+        let content_area = self.content_area().size;
+        self.app_size = content_area;
+
+        app.init(content_area);
+        self.app = Some(app);
+
+        self.content_buffer = Some(EmbeddedGraphicsBuffer::new(content_area));
+        self.is_dirty = true;
+    }
+
+    pub fn handle_app_event(&mut self, event: WindowEvent) {
+        if let Some(app) = &mut self.app {
+            app.handle_event(event);
+            self.is_dirty = true;
+        }
+    }
+
+    pub fn update_app(&mut self) -> bool {
+        if let Some(app) = &mut self.app {
+            if app.update() {
+                self.is_dirty = true;
+                return true;
+            }
+        }
+        false
     }
 }

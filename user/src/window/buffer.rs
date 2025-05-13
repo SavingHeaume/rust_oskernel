@@ -1,6 +1,6 @@
 use alloc::vec;
 use alloc::vec::Vec;
-use embedded_graphics::{pixelcolor::Rgb888, prelude::*, primitives::Rectangle};
+use embedded_graphics::{pixelcolor::Rgb888, prelude::*};
 
 #[derive(Clone)]
 pub struct EmbeddedGraphicsBuffer {

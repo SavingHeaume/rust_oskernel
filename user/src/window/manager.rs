@@ -1,7 +1,9 @@
+use super::app::AppRegistry;
 use super::cursor::MouseState;
 use super::destop_icos::DesktopIcon;
 use super::event::WindowEvent;
 use super::window::Window;
+use alloc::string::String;
 use alloc::vec::Vec;
 use embedded_graphics::draw_target::DrawTarget;
 use embedded_graphics::geometry::Size;
@@ -58,6 +60,21 @@ impl WindowManager {
         id
     }
 
+    pub fn create_app_window(&mut self, app_name: &str) -> Option<usize> {
+        println!("crate_app");
+        if let Some(app) = AppRegistry::create_app(app_name) {
+            let size = Size::new(400, 300);
+            let id = self.create_window(Point::new(100, 100), size, app_name);
+
+            if let Some(window) = self.windows.iter_mut().find(|w| w.id == id) {
+                window.attach_app(app);
+                self.bring_to_front(id);
+                return Some(id);
+            }
+        }
+        None
+    }
+
     /// 处理所有窗口的渲染
     pub fn render<D>(&mut self, target: &mut D) -> Result<(), D::Error>
     where
@@ -83,120 +100,139 @@ impl WindowManager {
             return;
         }
 
-        let event = processed_event.unwrap();
-
-        match event {
-            WindowEvent::MouseMove { x, y } => {
-                // 处理调整大小
-                if let Some(resize) = &self.resize_state {
-                    if let Some(window) = self.windows.iter_mut().find(|w| w.id == resize.window_id)
-                    {
-                        let dx = x - resize.start_point.x;
-                        let dy = y - resize.start_point.y;
-
-                        let mut new_width = resize.start_size.width;
-                        let mut new_height = resize.start_size.height;
-
-                        match resize.edge {
-                            ResizeEdge::Bottom => {
-                                new_height = (resize.start_size.height as i32 + dy).max(50) as u32;
-                            }
-                            ResizeEdge::Right => {
-                                new_width = (resize.start_size.width as i32 + dx).max(50) as u32;
-                            }
-                            ResizeEdge::BottomRight => {
-                                new_width = (resize.start_size.width as i32 + dx).max(50) as u32;
-                                new_height = (resize.start_size.height as i32 + dy).max(50) as u32;
-                            }
-                        }
-
-                        // 更新窗口大小
-                        window.resize(new_width, new_height);
-                        return;
-                    }
-                }
-
-                // 检查拖拽状态
-                if let Some(drag) = &self.drag_state {
-                    println!("Dragging window {}", drag.window_id);
-
-                    if let Some(window) = self.windows.iter_mut().find(|w| w.id == drag.window_id) {
-                        let new_x = x - drag.offset.0;
-                        let new_y = y - drag.offset.1;
-
-                        println!("Setting window position to ({}, {})", new_x, new_y);
-                        window.set_position(new_x, new_y);
-                    } else {
-                        println!("Window not found!");
-                    }
-                }
+        if let Some(event) = processed_event {
+            if let Some(window) = self.get_focused_window_mut() {
+                window.handle_app_event(event.clone());
             }
-            WindowEvent::MousePress {
-                x,
-                y,
-                button: Key::MouseLeft,
-            } => {
-                if let Some(icon_id) = self
-                    .desktop_icons
-                    .iter()
-                    .find(|i| i.contains_point(x, y))
-                    .map(|i| i.id)
-                {
+
+            match event {
+                WindowEvent::MouseMove { x, y } => {
+                    // 处理调整大小
+                    if let Some(resize) = &self.resize_state {
+                        if let Some(window) =
+                            self.windows.iter_mut().find(|w| w.id == resize.window_id)
+                        {
+                            let dx = x - resize.start_point.x;
+                            let dy = y - resize.start_point.y;
+
+                            let mut new_width = resize.start_size.width;
+                            let mut new_height = resize.start_size.height;
+
+                            match resize.edge {
+                                ResizeEdge::Bottom => {
+                                    new_height =
+                                        (resize.start_size.height as i32 + dy).max(50) as u32;
+                                }
+                                ResizeEdge::Right => {
+                                    new_width =
+                                        (resize.start_size.width as i32 + dx).max(50) as u32;
+                                }
+                                ResizeEdge::BottomRight => {
+                                    new_width =
+                                        (resize.start_size.width as i32 + dx).max(50) as u32;
+                                    new_height =
+                                        (resize.start_size.height as i32 + dy).max(50) as u32;
+                                }
+                            }
+
+                            // 更新窗口大小
+                            window.resize(new_width, new_height);
+                            return;
+                        }
+                    }
+
+                    // 检查拖拽状态
+                    if let Some(drag) = &self.drag_state {
+                        println!("Dragging window {}", drag.window_id);
+
+                        if let Some(window) =
+                            self.windows.iter_mut().find(|w| w.id == drag.window_id)
+                        {
+                            let new_x = x - drag.offset.0;
+                            let new_y = y - drag.offset.1;
+
+                            println!("Setting window position to ({}, {})", new_x, new_y);
+                            window.set_position(new_x, new_y);
+                        } else {
+                            println!("Window not found!");
+                        }
+                    }
+
                     for icon in &mut self.desktop_icons {
-                        icon.is_selected = icon.id == icon_id;
+                        icon.is_selected = false;
                     }
-                    return;
                 }
+                WindowEvent::MousePress {
+                    x,
+                    y,
+                    button: Key::MouseLeft,
+                } => {
+                    if let Some(icon_id) = self
+                        .desktop_icons
+                        .iter()
+                        .find(|i| i.contains_point(x, y))
+                        .map(|i| i.id)
+                    {
+                        let mut name = String::new();
+                        for icon in &mut self.desktop_icons {
+                            if icon.id == icon_id {
+                                icon.is_selected = true;
+                                name = icon.label.clone();
+                            }
+                        }
+                        self.create_app_window(name.as_str());
+                    }
 
-                // 检测窗口关闭按钮
-                if let Some(win_id) = self.find_window_at(x, y) {
-                    if let Some(window) = self.windows.iter_mut().find(|w| w.id == win_id) {
-                        if window.is_close_button_clicked(x, y) {
-                            window.close();
-                            self.cleanup();
-                            return; // 关闭窗口，不再处理后续逻辑
+                    // 检测窗口关闭按钮
+                    if let Some(win_id) = self.find_window_at(x, y) {
+                        if let Some(window) = self.windows.iter_mut().find(|w| w.id == win_id) {
+                            if window.is_close_button_clicked(x, y) {
+                                window.close();
+                                self.cleanup();
+                                return; // 关闭窗口，不再处理后续逻辑
+                            }
+                        }
+                    }
+
+                    if let Some((win_id, edge)) = self.detect_resize_edge(x, y) {
+                        if let Some(window) = self.windows.iter().find(|w| w.id == win_id) {
+                            self.resize_state = Some(ResizeState {
+                                window_id: win_id,
+                                edge,
+                                start_point: Point::new(x, y),
+                                start_size: window.bounds.size,
+                            });
+                            return;
+                        }
+                    }
+
+                    if let Some(win_id) = self.find_window_at(x, y) {
+                        println!("Found window {} at position", win_id);
+                        self.bring_to_front(win_id);
+
+                        if let Some(win) = self.windows.iter().find(|w| w.id == win_id) {
+                            let offset_x = x - win.bounds.top_left.x;
+                            let offset_y = y - win.bounds.top_left.y;
+
+                            println!(
+                                "Setting drag state with offset ({}, {})",
+                                offset_x, offset_y
+                            );
+                            self.drag_state = Some(DragState {
+                                window_id: win.id,
+                                offset: (offset_x, offset_y),
+                            });
                         }
                     }
                 }
-
-                if let Some((win_id, edge)) = self.detect_resize_edge(x, y) {
-                    if let Some(window) = self.windows.iter().find(|w| w.id == win_id) {
-                        self.resize_state = Some(ResizeState {
-                            window_id: win_id,
-                            edge,
-                            start_point: Point::new(x, y),
-                            start_size: window.bounds.size,
-                        });
-                        return;
-                    }
+                WindowEvent::MouseRelease {
+                    button: Key::MouseLeft,
+                } => {
+                    self.resize_state = None;
+                    self.drag_state = None;
                 }
-
-                if let Some(win_id) = self.find_window_at(x, y) {
-                    println!("Found window {} at position", win_id);
-                    self.bring_to_front(win_id);
-
-                    if let Some(win) = self.windows.iter().find(|w| w.id == win_id) {
-                        let offset_x = x - win.bounds.top_left.x;
-                        let offset_y = y - win.bounds.top_left.y;
-
-                        println!(
-                            "Setting drag state with offset ({}, {})",
-                            offset_x, offset_y
-                        );
-                        self.drag_state = Some(DragState {
-                            window_id: win.id,
-                            offset: (offset_x, offset_y),
-                        });
-                    }
-                }
+                _ => {}
             }
-            WindowEvent::MouseRelease {
-                button: Key::MouseLeft,
-            } => {
-                self.resize_state = None;
-                self.drag_state = None;
-            }
-            _ => {}
         }
     }
 
@@ -274,4 +310,12 @@ impl WindowManager {
 
         id
     }
+
+    fn get_focused_window_mut(&mut self) -> Option<&mut Window> {
+        self.windows.iter_mut().max_by_key(|w| w.z_index)
+    }
+
+    pub fn get_windows_mut(&mut self) -> &mut Vec<Window> {
+    &mut self.windows
+}
 }

@@ -8,10 +8,11 @@ use embedded_graphics::draw_target::DrawTarget;
 use embedded_graphics::pixelcolor::Rgb888;
 use embedded_graphics::prelude::*;
 use embedded_graphics::primitives::{PrimitiveStyleBuilder, Rectangle};
+use user_lib::window::AppInterface;
 use user_lib::window::{EmbeddedGraphicsBuffer, WindowEvent, WindowManager, translate_event};
 use user_lib::{Display, VIRTGPU_XRES, VIRTGPU_YRES};
-use user_lib::{event_get, sleep};
-use virtio_input_decoder::{DecodeType, Key, KeyType, Mouse};
+use user_lib::{event_get, get_time};
+use virtio_input_decoder::Key;
 
 #[unsafe(no_mangle)]
 pub fn main() -> i32 {
@@ -19,14 +20,13 @@ pub fn main() -> i32 {
     let mut disp = Display::new(size);
     let mut wm = WindowManager::new(size);
 
-    let win1 = wm.create_window(Point::new(100, 100), Size::new(400, 300), "Window 1");
-    let win2 = wm.create_window(Point::new(300, 200), Size::new(300, 200), "Window 2");
+    let desktop_buffer = create_desktop_background(size);
 
-    let mut desktop_buffer = create_desktop_background(size);
+    wm.add_desktop_icon(Point::new(50, 50), "move");
+    wm.add_desktop_icon(Point::new(50, 150), "shape");
+    wm.add_desktop_icon(Point::new(50, 250), "snake");
 
-    wm.add_desktop_icon(Point::new(50, 50), "file");
-    wm.add_desktop_icon(Point::new(50, 150), "set");
-    wm.add_desktop_icon(Point::new(50, 250), "shell");
+    let mut last_update_times = alloc::collections::BTreeMap::new();
 
     loop {
         while let Some(raw_evt) = event_get() {
@@ -38,8 +38,24 @@ pub fn main() -> i32 {
             }
         }
 
-        wm.cleanup();
+        let now = get_time();
+        for window in wm.get_windows_mut() {
+            if let Some(app) = &window.app {
+                if app.needs_timer() {
+                    let interval = app.timer_interval() as isize;
+                    let last_time = last_update_times.get(&window.id).copied().unwrap_or(0);
+                    if now - last_time >= interval {
+                        let updated = window.update_app();
+                        if updated {
+                            // println!("App updated");
+                        }
+                        last_update_times.insert(window.id, now);
+                    }
+                }
+            }
+        }
 
+        wm.cleanup();
         disp.clear(Rgb888::BLACK).unwrap();
         desktop_buffer.draw(&mut disp).unwrap();
         wm.render(&mut disp).unwrap();
@@ -53,7 +69,6 @@ pub fn main() -> i32 {
 fn create_desktop_background(size: Size) -> impl Drawable<Color = Rgb888> {
     let mut buffer = EmbeddedGraphicsBuffer::new(size);
 
-    // 绘制渐变背景 (简化版)
     let gradient_style = PrimitiveStyleBuilder::new()
         .fill_color(Rgb888::new(50, 100, 150))
         .build();
@@ -62,8 +77,6 @@ fn create_desktop_background(size: Size) -> impl Drawable<Color = Rgb888> {
         .into_styled(gradient_style)
         .draw(&mut buffer)
         .unwrap();
-
-    // 可以在这里添加桌面图标等其他元素
 
     buffer
 }
