@@ -34,7 +34,7 @@ build_kernel:
 		-O binary \
 		target/riscv64gc-unknown-none-elf/release/kernel.bin
 
-run_qemu: build_fs build_kernel
+run_qemu:
 	@echo "Starting QEMU..."
 	cd $(KERNEL_DIR) && \
 	qemu-system-riscv64 \
