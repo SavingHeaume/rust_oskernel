@@ -17,16 +17,29 @@ pub struct DesktopIcon {
     pub is_selected: bool,
 }
 
+pub fn create_default_icon(size: Size) -> EmbeddedGraphicsBuffer {
+    let mut buffer = EmbeddedGraphicsBuffer::new(size);
+
+    // 绘制蓝色矩形图标
+    let rect = Rectangle::new(Point::new(4, 4), Size::new(size.width - 8, size.height - 8));
+    rect.into_styled(PrimitiveStyle::with_fill(Rgb888::new(0, 120, 215)))
+        .draw(&mut buffer)
+        .expect("Failed to draw default icon");
+
+    buffer
+}
+
 impl DesktopIcon {
     pub fn new(id: usize, position: Point, label: &str) -> Self {
         let icon_size = Size::new(48, 48);
+        let icon_buffer = create_default_icon(icon_size);
 
         Self {
             id,
             position,
             size: Size::new(64, 64), // 图标加标签的总大小
             label: label.to_string(),
-            icon_buffer: EmbeddedGraphicsBuffer::new(icon_size),
+            icon_buffer,
             is_selected: false,
         }
     }
