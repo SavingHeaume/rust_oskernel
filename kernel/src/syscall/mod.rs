@@ -5,6 +5,8 @@ const SYSCALL_CLOSE: usize = 57;
 const SYSCALL_PIPE: usize = 59;
 const SYSCALL_READ: usize = 63;
 const SYSCALL_WRITE: usize = 64;
+const SYSCALL_MKDIR: usize = 34;
+const SYSCALL_FSTAT: usize = 80;
 
 // process
 const SYSCALL_EXIT: usize = 93;
@@ -83,6 +85,16 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
         }
         SYSCALL_READ => sys_read(args[0], args[1] as *const u8, args[2]),
         SYSCALL_WRITE => sys_write(args[0], args[1] as *const u8, args[2]),
+        SYSCALL_MKDIR => {
+            info!("syscall_mkdir");
+            sys_mkdir(args[0] as *const u8)
+        }
+
+        SYSCALL_FSTAT => {
+            info!("syscall_fstat");
+            sys_fstat(args[0], args[1] as *mut u8)
+        }
+
         SYSCALL_SLEEP => {
             info!("syscall_sleep");
             sys_sleep(args[0])
@@ -175,7 +187,7 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
         }
         SYSCALL_GETDENTS => {
             info!("syscall_getdents");
-            sys_getdents(args[0], args[1] as *const u8, args[2])
+            sys_getdents(args[0] as *const u8)
         }
         _ => panic!("Unsupported syscall_id: {}", syscall_id),
     }

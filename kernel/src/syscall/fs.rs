@@ -1,10 +1,13 @@
-use crate::fs::{OpenFlags, ROOT_INODE, make_pipe, open_file};
+use crate::fs::{OpenFlags, ROOT_INODE, Stat, find_inode, make_pipe, open_file};
 use crate::mm::{UserBuffer, translated_byte_buffer, translated_refmut, translated_str};
 use crate::task::{current_process, current_user_token};
 use alloc::sync::Arc;
+use core::ptr::slice_from_raw_parts;
 
-pub fn sys_getdents(_fd: usize, _buf: *const u8, _len: usize) -> isize {
-    let vec = ROOT_INODE.ls();
+pub fn sys_getdents(path: *const u8) -> isize {
+    let path = translated_str(current_user_token(), path);
+    let inode = find_inode(path.as_str());
+    let vec = inode.unwrap().ls();
     let max_width = vec.iter().map(|s| s.len()).max().unwrap_or(0);
 
     for chunk in vec.chunks(5) {
@@ -109,4 +112,43 @@ pub fn sys_dup(fd: usize) -> isize {
     let new_fd = inner.alloc_fd();
     inner.fd_table[new_fd] = Some(Arc::clone(inner.fd_table[fd].as_ref().unwrap()));
     new_fd as isize
+}
+
+pub fn sys_mkdir(path: *const u8) -> isize {
+    let token = current_user_token();
+    let dir = translated_str(token, path);
+    let (parent_path, target) = dir.rsplit_once('/').unwrap();
+
+    if let Some(parent_inode) = find_inode(parent_path) {
+        if let Some(_cur_inode) = parent_inode.create_dir(target) {
+            0
+        } else {
+            -2
+        }
+    } else {
+        -1
+    }
+}
+
+pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
+    let process = current_process();
+    let mut inner = process.inner_exclusive_access();
+    let token = current_user_token();
+    let user_buffer = UserBuffer::new(translated_byte_buffer(token, stat, size_of::<Stat>()));
+
+    let fd_table = &mut inner.fd_table;
+
+    if fd >= fd_table.len() || fd_table[fd].is_none() {
+        return -1;
+    }
+
+    let file = fd_table[fd].clone().unwrap();
+    let tmp_stat = Stat::from(file);
+    let stat_buf = slice_from_raw_parts(&tmp_stat as *const _ as *const u8, size_of::<Stat>());
+    for (i, byte) in user_buffer.into_iter().enumerate() {
+        unsafe {
+            *byte = (*stat_buf)[i];
+        }
+    }
+    0
 }

@@ -15,7 +15,6 @@ pub struct Inode {
 }
 
 impl Inode {
-
     pub fn new(
         block_id: u32,
         block_offset: usize,
@@ -59,10 +58,10 @@ impl Inode {
         None
     }
 
-    pub fn find(&self, name: &str) -> Option<Arc<Inode>> {
+    pub fn find(&self, path: &str) -> Option<Arc<Inode>> {
         let fs = self.fs.lock();
         self.read_disk_inode(|disk_inode| {
-            self.find_inode_id(name, disk_inode).map(|inode_id| {
+            self.find_inode_id(path, disk_inode).map(|inode_id| {
                 let (block_id, block_offset) = fs.get_disk_inode_pos(inode_id);
                 Arc::new(Self::new(
                     block_id,
@@ -92,11 +91,18 @@ impl Inode {
     }
 
     pub fn create(&self, name: &str) -> Option<Arc<Inode>> {
+        self.create_inode(name, DiskInodeType::File)
+    }
+
+    pub fn create_dir(&self, name: &str) -> Option<Arc<Inode>> {
+        self.create_inode(name, DiskInodeType::Directory)
+    }
+
+    pub fn create_inode(&self, name: &str, inode_type: DiskInodeType) -> Option<Arc<Inode>> {
         let mut fs = self.fs.lock();
 
         // 检查文件是否存在
         let op = |root_inode: &DiskInode| {
-
             assert!(root_inode.is_dir());
 
             self.find_inode_id(name, root_inode)
@@ -111,12 +117,11 @@ impl Inode {
         get_block_cache(new_inode_block_id as usize, Arc::clone(&self.block_device))
             .lock()
             .modify(new_inode_block_offset, |new_inode: &mut DiskInode| {
-                new_inode.initialize(DiskInodeType::File);
+                new_inode.initialize(inode_type);
             });
 
         // 将新文件的目录项插入根目录
         self.modify_disk_inode(|root_inode| {
-
             let file_count = (root_inode.size as usize) / DIRENT_SZ;
             let new_size = (file_count + 1) * DIRENT_SZ;
 
@@ -139,14 +144,17 @@ impl Inode {
             self.fs.clone(),
             self.block_device.clone(),
         )))
-
     }
 
     pub fn ls(&self) -> Vec<String> {
         let _fs = self.fs.lock();
         self.read_disk_inode(|disk_inode| {
-            let file_count = (disk_inode.size as usize) / DIRENT_SZ;
             let mut v: Vec<String> = Vec::new();
+            if disk_inode.is_file() {
+                return v;
+            }
+
+            let file_count = (disk_inode.size as usize) / DIRENT_SZ;
             for i in 0..file_count {
                 let mut dirent = DirEntry::empty();
                 assert_eq!(
@@ -167,6 +175,8 @@ impl Inode {
     pub fn write_at(&self, offset: usize, buf: &[u8]) -> usize {
         let mut fs = self.fs.lock();
         let size = self.modify_disk_inode(|disk_inode| {
+            assert!(disk_inode.is_file());
+
             self.increase_size((offset + buf.len()) as u32, disk_inode, &mut fs);
             disk_inode.write_at(offset, buf, &self.block_device)
         });
@@ -177,6 +187,7 @@ impl Inode {
     pub fn clear(&self) {
         let mut fs = self.fs.lock();
         self.modify_disk_inode(|disk_inode| {
+            assert!(disk_inode.is_file());
             let size = disk_inode.size;
             let data_blocks_dealloc = disk_inode.clear_size(&self.block_device);
             assert!(data_blocks_dealloc.len() == DiskInode::total_blocks(size) as usize);
@@ -185,5 +196,23 @@ impl Inode {
             }
         });
         block_cache_sync_all();
+    }
+
+    pub fn get_file_size(&self) -> u32 {
+        self.read_disk_inode(|disk_inode| disk_inode.size)
+    }
+
+    pub fn get_inode_id(&self) -> u32 {
+        self.fs
+            .lock()
+            .get_disk_inode_id(self.block_id as u32, self.block_offset)
+    }
+
+    pub fn is_dir(&self) -> bool {
+        self.read_disk_inode(|disk_inode| disk_inode.is_dir())
+    }
+
+    pub fn is_file(&self) -> bool {
+        self.read_disk_inode(|disk_inode| disk_inode.is_file())
     }
 }

@@ -1,7 +1,10 @@
 use super::File;
-use crate::drivers::BLOCK_DEVICE;
 use crate::mm::UserBuffer;
 use crate::sync::UPIntrFreeCell;
+use crate::{
+    drivers::BLOCK_DEVICE,
+    fs::{DIR, LNK, REG},
+};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use bitflags::*;
@@ -50,6 +53,29 @@ lazy_static! {
     };
 }
 
+pub fn find_inode(path: &str) -> Option<Arc<Inode>> {
+    // println!("find_inode: {}", path);
+    let root_inode = ROOT_INODE.clone();
+
+    let componects: Vec<&str> = path.split('/').collect();
+    // println!("split componects: {:?}", componects);
+
+    componects.into_iter().fold(Some(root_inode), |res, name| {
+        if let Some(node) = res {
+            if !name.is_empty() {
+                // println!("  ↳ Looking up file/dir: {:?}", name);
+                node.find(name)
+            } else {
+                // println!("  ↳ Skipping empty component");
+                Some(node)
+            }
+        } else {
+            // println!("  ↳ Skipping (previous lookup failed)");
+            None
+        }
+    })
+}
+
 /*
 pub fn list_apps() {
     println!("/**** APPS ****");
@@ -84,20 +110,23 @@ impl OpenFlags {
 }
 
 pub fn open_file(name: &str, flags: OpenFlags) -> Option<Arc<OSInode>> {
+    // println!("open_file: {}", name);
     let (readable, writable) = flags.read_write();
     if flags.contains(OpenFlags::CREATE) {
-        if let Some(inode) = ROOT_INODE.find(name) {
+        if let Some(inode) = find_inode(name) {
             // clear size
             inode.clear();
             Some(Arc::new(OSInode::new(readable, writable, inode)))
         } else {
             // create file
-            ROOT_INODE
-                .create(name)
+            let (parent_path, target) = name.rsplit_once('/').unwrap();
+            let parent_inode = find_inode(parent_path).unwrap();
+            parent_inode
+                .create(target)
                 .map(|inode| Arc::new(OSInode::new(readable, writable, inode)))
         }
     } else {
-        ROOT_INODE.find(name).map(|inode| {
+        find_inode(name).map(|inode| {
             if flags.contains(OpenFlags::TRUNC) {
                 inode.clear();
             }
@@ -136,5 +165,32 @@ impl File for OSInode {
             total_write_size += write_size;
         }
         total_write_size
+    }
+
+    fn get_offset(&self) -> usize {
+        self.inner.exclusive_access().offset
+    }
+
+    fn set_offset(&self, offset: usize) {
+        self.inner.exclusive_access().offset = offset;
+    }
+
+    fn get_file_size(&self) -> usize {
+        self.inner.exclusive_access().inode.get_file_size() as usize
+    }
+
+    fn get_inode_id(&self) -> usize {
+        self.inner.exclusive_access().inode.get_inode_id() as usize
+    }
+
+    fn get_mode(&self) -> usize {
+        let inode = &self.inner.exclusive_access().inode;
+        if inode.is_file() {
+            REG
+        } else if inode.is_dir() {
+            DIR
+        } else {
+            LNK
+        }
     }
 }

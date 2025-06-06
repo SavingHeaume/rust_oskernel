@@ -5,7 +5,7 @@ use crate::task::{
     pid2process, suspend_current_and_run_next,
 };
 use crate::timer::get_time_ms;
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 
@@ -43,7 +43,9 @@ pub fn sys_fork() -> isize {
 
 pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
     let token = current_user_token();
-    let path = translated_str(token, path);
+    let name = translated_str(token, path);
+    let str_bin = "/bin/".to_string();
+    let path = str_bin + &name;
     let mut args_vec: Vec<String> = Vec::new();
     loop {
         let arg_str_ptr = *translated_ref(token, args);

@@ -1,10 +1,15 @@
 use core::arch::asm;
 
+//fs
 const SYSCALL_DUP: usize = 24;
 const SYSCALL_OPEN: usize = 56;
 const SYSCALL_CLOSE: usize = 57;
 const SYSCALL_PIPE: usize = 59;
 const SYSCALL_READ: usize = 63;
+const SYSCALL_MKDIR: usize = 34;
+const SYSCALL_FSTAT: usize = 80;
+
+// process
 const SYSCALL_WRITE: usize = 64;
 const SYSCALL_EXIT: usize = 93;
 const SYSCALL_SLEEP: usize = 101;
@@ -83,14 +88,22 @@ pub fn sys_read(fd: usize, buffer: &mut [u8]) -> isize {
     )
 }
 
-pub fn sys_getdents(_fd: usize, _buffer: &mut [u8]) -> isize {
+pub fn sys_getdents(path: &str) -> isize {
     /*
     syscall(
         SYSCALL_GETDENTS,
         [fd, buffer.as_mut_ptr() as usize, buffer.len()],
     );
     */
-    syscall(SYSCALL_GETDENTS, [0, 0, 0])
+    syscall(SYSCALL_GETDENTS, [path.as_ptr() as usize, 0, 0])
+}
+
+pub fn sys_mkdir(path: *const u8) -> isize {
+    syscall(SYSCALL_MKDIR, [path as usize, 0, 0])
+}
+
+pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
+    syscall(SYSCALL_FSTAT, [fd, stat as usize, 0])
 }
 
 pub fn sys_write(fd: usize, buffer: &[u8]) -> isize {

@@ -14,3 +14,4 @@ pub use block_dev::BlockDevice;
 pub use fs::FileSystem;
 use layout::*;
 pub use vfs::Inode;
+pub use layout::DiskInodeType;
