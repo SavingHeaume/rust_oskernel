@@ -16,7 +16,7 @@ fn main(argc: usize, argv: &[&str]) -> i32 {
 
     for target in &argv[1..] {
         match mkdir(target) {
-            0 => {}
+            0 => println!("create success"),
             -1 => println!(
                 "connot create directory {}: No such file or directory",
                 target

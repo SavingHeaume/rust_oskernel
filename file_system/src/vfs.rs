@@ -215,4 +215,112 @@ impl Inode {
     pub fn is_file(&self) -> bool {
         self.read_disk_inode(|disk_inode| disk_inode.is_file())
     }
+
+    pub fn delete(&self, name: &str) -> bool {
+        let mut fs = self.fs.lock();
+
+        // 首先检查当前 inode 是否为目录
+        let is_current_dir = self.read_disk_inode(|disk_inode| disk_inode.is_dir());
+        if !is_current_dir {
+            return false; // 只能在目录中删除文件
+        }
+
+        // 查找要删除的文件/目录的 inode_id
+        let target_inode_id =
+            self.read_disk_inode(|disk_inode| self.find_inode_id(name, disk_inode));
+
+        let target_inode_id = match target_inode_id {
+            Some(id) => id,
+            None => return false, // 文件不存在
+        };
+
+        // 获取目标 inode 的位置并检查其类型
+        let (target_block_id, target_block_offset) = fs.get_disk_inode_pos(target_inode_id);
+
+        // 检查目标是否为目录，如果是目录则检查是否为空
+        let target_is_empty_dir =
+            get_block_cache(target_block_id as usize, Arc::clone(&self.block_device))
+                .lock()
+                .read(target_block_offset, |target_disk_inode: &DiskInode| {
+                    if target_disk_inode.is_dir() {
+                        // 目录必须为空才能删除
+                        target_disk_inode.size == 0
+                    } else {
+                        true // 文件可以直接删除
+                    }
+                });
+
+        if !target_is_empty_dir {
+            return false; // 目录不为空，不能删除
+        }
+
+        // 清理目标 inode 的数据块
+        get_block_cache(target_block_id as usize, Arc::clone(&self.block_device))
+            .lock()
+            .modify(target_block_offset, |target_disk_inode: &mut DiskInode| {
+                if target_disk_inode.is_file() {
+                    // 释放文件的所有数据块
+                    let size = target_disk_inode.size;
+                    let data_blocks_dealloc = target_disk_inode.clear_size(&self.block_device);
+                    assert!(data_blocks_dealloc.len() == DiskInode::total_blocks(size) as usize);
+                    for data_block in data_blocks_dealloc.into_iter() {
+                        fs.dealloc_data(data_block);
+                    }
+                }
+                // 目录的话，由于已经检查为空，所以不需要释放数据块
+            });
+
+        // 释放目标 inode
+        fs.dealloc_inode(target_inode_id);
+
+        // 从当前目录中移除目录项
+        self.modify_disk_inode(|root_inode| {
+            let file_count = (root_inode.size as usize) / DIRENT_SZ;
+            let mut found_index = None;
+
+            // 找到要删除的目录项的索引
+            for i in 0..file_count {
+                let mut dirent = DirEntry::empty();
+                assert_eq!(
+                    root_inode.read_at(i * DIRENT_SZ, dirent.as_bytes_mut(), &self.block_device),
+                    DIRENT_SZ,
+                );
+                if dirent.name() == name {
+                    found_index = Some(i);
+                    break;
+                }
+            }
+
+            if let Some(index) = found_index {
+                // 将最后一个目录项移动到被删除项的位置
+                if index < file_count - 1 {
+                    let mut last_dirent = DirEntry::empty();
+                    assert_eq!(
+                        root_inode.read_at(
+                            (file_count - 1) * DIRENT_SZ,
+                            last_dirent.as_bytes_mut(),
+                            &self.block_device
+                        ),
+                        DIRENT_SZ,
+                    );
+                    root_inode.write_at(
+                        index * DIRENT_SZ,
+                        last_dirent.as_bytes(),
+                        &self.block_device,
+                    );
+                }
+
+                // 减少目录大小
+                let new_size = (file_count - 1) * DIRENT_SZ;
+                root_inode.size = new_size as u32;
+
+                // 如果目录变小了很多，可以考虑释放一些数据块
+                // 这里简化处理，不释放已分配的块
+            }
+        });
+
+        // 同步所有缓存
+        block_cache_sync_all();
+        true
+    }
 }

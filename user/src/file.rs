@@ -73,3 +73,9 @@ pub fn mkdir(path: &str) -> isize {
 pub fn fstat(fd: usize, stat: &mut Stat) -> isize {
     sys_fstat(fd, stat as *mut _ as *mut _)
 }
+
+pub const AT_REMOVEDIR: u32 = 1;
+pub fn unlink(path: &str, flags: u32) -> isize {
+    let path = String::from(path) + "\0";
+    sys_unlink(path.as_ptr(), flags)
+}

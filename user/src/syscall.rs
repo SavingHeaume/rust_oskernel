@@ -8,6 +8,7 @@ const SYSCALL_PIPE: usize = 59;
 const SYSCALL_READ: usize = 63;
 const SYSCALL_MKDIR: usize = 34;
 const SYSCALL_FSTAT: usize = 80;
+const SYSCALL_UNLINK: usize = 35;
 
 // process
 const SYSCALL_WRITE: usize = 64;
@@ -104,6 +105,10 @@ pub fn sys_mkdir(path: *const u8) -> isize {
 
 pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
     syscall(SYSCALL_FSTAT, [fd, stat as usize, 0])
+}
+
+pub fn sys_unlink(path: *const u8, flags: u32) -> isize {
+    syscall(SYSCALL_UNLINK, [path as usize, flags as usize, 0])
 }
 
 pub fn sys_write(fd: usize, buffer: &[u8]) -> isize {

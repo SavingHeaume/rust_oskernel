@@ -7,6 +7,7 @@ const SYSCALL_READ: usize = 63;
 const SYSCALL_WRITE: usize = 64;
 const SYSCALL_MKDIR: usize = 34;
 const SYSCALL_FSTAT: usize = 80;
+const SYSCALL_UNLINK: usize = 35;
 
 // process
 const SYSCALL_EXIT: usize = 93;
@@ -93,6 +94,11 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
         SYSCALL_FSTAT => {
             info!("syscall_fstat");
             sys_fstat(args[0], args[1] as *mut u8)
+        }
+
+        SYSCALL_UNLINK => {
+            info!("syscall_unlink");
+            sys_unlink(args[0] as *const u8, args[1] as u32)
         }
 
         SYSCALL_SLEEP => {

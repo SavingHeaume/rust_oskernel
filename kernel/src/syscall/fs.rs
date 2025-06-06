@@ -129,6 +129,29 @@ pub fn sys_mkdir(path: *const u8) -> isize {
         -1
     }
 }
+const DIRENT_SZ: usize = 32;
+
+pub fn sys_unlink(path: *const u8, flags: u32) -> isize {
+    let path = translated_str(current_user_token(), path);
+
+    let (parent_path, target) = path.rsplit_once('/').unwrap();
+    if let Some(inode) = find_inode(&path) {
+        if flags == 0 && inode.is_file() {
+            find_inode(parent_path).unwrap().delete(target);
+            0
+        } else if flags == 1 && inode.is_dir() {
+            if find_inode(parent_path).unwrap().delete(target) {
+                0
+            } else {
+                -3
+            }
+        } else {
+            -2
+        }
+    } else {
+        -1
+    }
+}
 
 pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
     let process = current_process();
