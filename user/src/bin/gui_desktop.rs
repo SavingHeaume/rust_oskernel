@@ -8,7 +8,7 @@ use embedded_graphics::draw_target::DrawTarget;
 use embedded_graphics::pixelcolor::Rgb888;
 use embedded_graphics::prelude::*;
 use embedded_graphics::primitives::{PrimitiveStyleBuilder, Rectangle};
-use user_lib::window::{EmbeddedGraphicsBuffer, WindowEvent, WindowManager, translate_event};
+use user_lib::{EmbeddedGraphicsBuffer, WindowEvent, WindowManager, translate_event};
 use user_lib::{Display, VIRTGPU_XRES, VIRTGPU_YRES};
 use user_lib::{event_get, get_time};
 use virtio_input_decoder::Key;

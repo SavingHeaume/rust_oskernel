@@ -10,7 +10,7 @@ mod lang_items;
 mod sync;
 mod syscall;
 mod task;
-pub mod window;
+mod window;
 
 extern crate alloc;
 #[macro_use]
@@ -24,6 +24,7 @@ pub use io::*;
 pub use sync::*;
 use syscall::*;
 pub use task::*;
+pub use window::*;
 
 const USER_HEAP_SIZE: usize = 1024 * 1024 * 10;
 
