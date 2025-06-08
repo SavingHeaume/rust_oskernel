@@ -1,4 +1,4 @@
-use crate::fs::{OpenFlags, ROOT_INODE, Stat, find_inode, make_pipe, open_file};
+use crate::fs::{OpenFlags, Stat, find_inode, make_pipe, open_file};
 use crate::mm::{UserBuffer, translated_byte_buffer, translated_refmut, translated_str};
 use crate::task::{current_process, current_user_token};
 use alloc::sync::Arc;
@@ -7,7 +7,8 @@ use core::ptr::slice_from_raw_parts;
 pub fn sys_getdents(path: *const u8) -> isize {
     let path = translated_str(current_user_token(), path);
     let inode = find_inode(path.as_str());
-    let vec = inode.unwrap().ls();
+    let mut vec = inode.unwrap().ls();
+    vec.sort();
     let max_width = vec.iter().map(|s| s.len()).max().unwrap_or(0);
 
     for chunk in vec.chunks(5) {

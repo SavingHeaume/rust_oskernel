@@ -13,14 +13,12 @@ use user_lib::{thread_create, waittid};
 
 const N: usize = 5;
 const ROUND: usize = 4;
-// A round: think -> wait for forks -> eat
 const GRAPH_SCALE: usize = 10;
 
 fn get_time_u() -> usize {
     get_time() as usize
 }
 
-// Time unit: ms
 const ARR: [[usize; ROUND * 2]; N] = [
     [70, 80, 100, 40, 50, 60, 20, 40],
     [30, 60, 20, 70, 100, 10, 30, 60],
@@ -82,7 +80,7 @@ pub fn main() -> i32 {
     let time_cost = get_time_u() - start;
     println!("time cost = {}", time_cost);
     println!("'-' -> THINKING; 'x' -> EATING; ' ' -> WAITING ");
-    for id in (0..N).into_iter().chain(0..=0) {
+    for id in 0..N {
         print!("#{}:", id);
         for j in 0..time_cost / GRAPH_SCALE {
             let current_time = j * GRAPH_SCALE + start;
